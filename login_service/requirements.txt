@@ -1,3 +1,6 @@
 fastapi
 uvicorn
 requests
+passlib[bcrypt]
+python-jose
+pydantic
