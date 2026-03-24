@@ -9,7 +9,7 @@ def verify_password(plain_password,hased_password):
     return pwd_context.verify(plain_password,hased_password) #verify will help comparing safely
  
  #---function to fetch a user from the database---
- def get_user(username: str):
+def get_user(username: str):
     conn = get_db_connection() #open and connect to the database 
     #sql query
     user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone() #fetch the user with the given username
