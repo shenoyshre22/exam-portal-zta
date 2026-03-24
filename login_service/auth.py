@@ -25,3 +25,22 @@ def authenticate_user(username: str , password: str):
     if not verify_password(password,user["password"]):
         return None
     return user #if both checks pass, then return the user data
+#---function to create a new user in the database---
+def create_user(username: str, password: str, role: str):
+    conn = get_db_connection()
+
+    # hash password before storing
+    hashed_password = pwd_context.hash(password)
+
+    try:
+        conn.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            (username, hashed_password, role)
+        )
+        conn.commit()
+    except:
+        conn.close()
+        return False  # user already exists
+
+    conn.close()
+    return True
