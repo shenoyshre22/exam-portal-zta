@@ -10,9 +10,10 @@ from pydantic import BaseModel
 app = FastAPI(title="Logging Service")
 
 # ---------------- DATABASE MODEL ----------------
+# This model defines the structure of the logs table in the database. Each log entry will have an id, user_id, service name, event type, description, and timestamp.
 class Log(Base):
     __tablename__ = "logs"
-
+#details of the user to be taken 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String)
     service = Column(String)
@@ -25,6 +26,7 @@ Base.metadata.create_all(bind=engine)
 
 
 # ---------------- Pydantic Schema ----------------
+# This schema is used to validate incoming log data when a log event is created.
 class LogCreate(BaseModel):
     user_id: str
     service: str
@@ -42,6 +44,10 @@ def get_db():
 
 
 # ---------------- ROUTES ----------------
+# Basic route to check if service is running
+# This will be used by other services to check if logging service is up before sending logs
+
+
 @app.get("/")
 def root():
     return {"message": "Logging Service Running"}
