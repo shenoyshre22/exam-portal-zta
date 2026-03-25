@@ -6,4 +6,5 @@ class MCQCreation(BaseModel):
     option_a:str
     option_b:str
     option_c:str
+    option_d:str
     correct_option:str
