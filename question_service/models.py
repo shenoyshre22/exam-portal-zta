@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer,String, question_text
+from sqlalchemy import Column, Integer,String, Text
 from database import Base
 
-class QuestionService(Base):
-    __table__="questions"
+class Question(Base):
+    __tablename__="questions"
 
     id=Column(Integer, primary_key=True,index=True)
     exam_id=Column(Integer)

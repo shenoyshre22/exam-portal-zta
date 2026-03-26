@@ -2,8 +2,9 @@ from sqlalchemy.orm import Session
 import shutil
 from database import SessionLocal, engine
 import models,schemas
-from pdf_parser import extract_questions_from_pdf
+from pdf_parser import get_from_pdf
 from auth_client import verify_token
+from fastapi import FastAPI
 
 models.Base.metadata.create_all(bind=engine)
 app=FastAPI()
@@ -35,7 +36,7 @@ def uploading_pdf(exam_id:int,file:UploadFile=File(),db:Session=Depends(get_db),
     questions=extract_questions_from_pdf(filepath)
 
     for qs in questions:
-        db.add(models.QuestionService(exam_id=exam_id,question_type="THEORY",question_text=qs))
+        db.add(models.Question(exam_id=exam_id,question_type="THEORY",question_text=qs))
         db.commit()
         return {"questions_added":len(questions)}
 
@@ -52,6 +53,6 @@ def add_mcqs(mcq:schemas.MCQCreation, db: Session=Depends(get_db), user=Depends(
 
 @app.get("/questions/{exam_id}")
 def get_questions(exam_id:int,db:Session=Depends(get_db)):
-    return db.query(models.QuestionService).filter(
-        models.QuestionService.exam_id==exam_id
+    return db.query(models.Question).filter(
+        models.Question.exam_id==exam_id
     ).all()
