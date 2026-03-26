@@ -4,7 +4,7 @@ from database import SessionLocal, engine
 import models,schemas
 from pdf_parser import get_from_pdf
 from auth_client import verify_token
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 
 models.Base.metadata.create_all(bind=engine)
 app=FastAPI()
@@ -56,3 +56,7 @@ def get_questions(exam_id:int,db:Session=Depends(get_db)):
     return db.query(models.Question).filter(
         models.Question.exam_id==exam_id
     ).all()
+
+@app.get("/")
+def home():
+    return {"message":"Question Service is Running yay"}
