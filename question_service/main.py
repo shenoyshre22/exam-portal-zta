@@ -50,3 +50,8 @@ def add_mcqs(mcq:schemas.MCQCreation, db: Session=Depends(get_db), user=Depends(
     db.refresh(new)
     return new
 
+@app.get("/questions/{exam_id}")
+def get_questions(exam_id:int,db:Session=Depends(get_db)):
+    return db.query(models.QuestionService).filter(
+        models.QuestionService.exam_id==exam_id
+    ).all()
