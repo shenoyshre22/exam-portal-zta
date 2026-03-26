@@ -4,7 +4,7 @@ from passlib.context import CryptContext #this inbuilt library will help us hash
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") #this is the setup that will help us hash and verify passwords
 
 #---function to check if the entered password matches the stored password-----
-def verify_password(plain_password,hased_password):
+def verify_password(plain_password,hashed_password):
     #hashed password is the one stored in the database and plain password is the one entered by the user
     return pwd_context.verify(plain_password,hased_password) #verify will help comparing safely
  

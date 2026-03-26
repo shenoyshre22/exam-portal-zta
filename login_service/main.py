@@ -21,13 +21,13 @@ def startup():
     #insert users into the database
     for user in users:
         try:
-            conn.exceute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", user)
-        except:
-            #if user already exosts , ignore the error
+            conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", user)
+        except Exception:
+            #if user already exists , ignore the error
             pass
         #save changes and close the database connection
-        conn.commit()
-        conn.closer()
+    conn.commit()
+    conn.close()
 @app.get("/")
 def home():
         return{"message": "Login Service Running yay"}  # just to test for our sake , if the service runs
