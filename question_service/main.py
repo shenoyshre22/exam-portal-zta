@@ -1,13 +1,14 @@
 from sqlalchemy.orm import Session
+import os
 import shutil
 from database import SessionLocal, engine
 import models,schemas
 from pdf_parser import get_from_pdf
 from auth_client import verify_token
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
 
 models.Base.metadata.create_all(bind=engine)
-app=FastAPI()
+app=FastAPI(title="Question Service")
 
 #connection to DB
 
@@ -20,9 +21,12 @@ def get_db():
 
 #check authorization
 
-def get_curr_teacher(token:str=""):
+def get_curr_teacher(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401,detail='MISSING TOKEN')
+    token = authorization.split(" ", 1)[1].strip()
     user=verify_token(token)
-    if user["role"]!="teacher":
+    if user.get("role")!="teacher":
         raise HTTPException(status_code=403,detail='NOT AUTHORIZED')
     return user
 
@@ -31,14 +35,18 @@ def get_curr_teacher(token:str=""):
 @app.post("/upload-pdf")
 def uploading_pdf(exam_id:int,file:UploadFile=File(),db:Session=Depends(get_db),user=Depends(get_curr_teacher)):
     filepath=f"temp_{file.filename}"
-    with open(file_path,"wb") as buffer:
+    with open(filepath,"wb") as buffer:
         shutil.copyfileobj(file.file,buffer)
-    questions=extract_questions_from_pdf(filepath)
+
+    questions=get_from_pdf(filepath)
+    if os.path.exists(filepath):
+        os.remove(filepath)
 
     for qs in questions:
         db.add(models.Question(exam_id=exam_id,question_type="THEORY",question_text=qs))
-        db.commit()
-        return {"questions_added":len(questions)}
+    db.commit()
+
+    return {"questions_added":len(questions)}
 
 
 #mcq upload
@@ -60,3 +68,8 @@ def get_questions(exam_id:int,db:Session=Depends(get_db)):
 @app.get("/")
 def home():
     return {"message":"Question Service is Running yay"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "Question Service Running"}

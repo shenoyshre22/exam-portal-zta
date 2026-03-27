@@ -4,7 +4,7 @@ def get_from_pdf(filep):
     file=fitz.open(filep)
     text=""
 
-    for page in doc:
+    for page in file:
         text+=page.get_text()
 
     lines=text.split("\n")
