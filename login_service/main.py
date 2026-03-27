@@ -1,7 +1,7 @@
 #importing fastAPI (framework that helps build APIs) and hhtp exception to send proper error responses
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from models import LoginRequest, SignupRequest  #importing the data models we defined for login and signup
-from auth import authenticate_user,create_user #importing the auth+ user creation login
+from auth import authenticate_user, create_user, create_access_token, verify_token #importing the auth+ user creation login
 from database import create_users_table , get_db_connection #importing database setup functions
 from passlib.context import CryptContext #for hashing passwords
 #creating FastAPI instance
@@ -49,4 +49,18 @@ def login(data: LoginRequest): #takes in username and password as input , valida
     user = authenticate_user(data.username, data.password) #authenticate user using the function we defined in auth.py by calling it
     if not user: #if authentication fails (likee if user doesnt exist or password is wrong)
         raise HTTPException(status_code=401, detail="Invalid username or password") #send error response
-    return {"message": "Login successful", "role": user["role"]} #if login is successful , send success response with the user's role (student/teacher)
+    token = create_access_token({"sub": user["username"], "role": user["role"]})
+    return {"message": "Login successful", "role": user["role"], "access_token": token, "token_type": "bearer"} #if login is successful , send success response with the user's role (student/teacher)
+
+
+@app.get("/verify-token")
+def verify_user_token(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return {"username": user["username"], "role": user["role"]}

@@ -7,4 +7,4 @@ class MCQCreation(BaseModel):
     option_b:str
     option_c:str
     option_d:str
-    correct_option:str
+    correct_answer:str

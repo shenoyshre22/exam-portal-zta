@@ -33,7 +33,7 @@ def get_db():
 def fetch_submissions(student_id):
     #---fetching the submissions from the submission service---
     try:
-        res=requests.get(f"http://localhost:5003/submissions/{student_id}")
+        res=requests.get(f"http://localhost:5004/submissions/{student_id}")
         return res.json()
     except:
         raise HTTPException(status_code=500,detail="Submission service not running")

@@ -15,4 +15,4 @@ class Question(Base):
     option_b=Column(String, nullable=True)
     option_c=Column(String, nullable=True)
     option_d=Column(String,nullable=True)
-    correct_option=Column(String, nullable=True)
+    correct_answer=Column(String, nullable=True)
