@@ -2,12 +2,13 @@ from database import get_db_connection #to connect to our database
 from passlib.context import CryptContext #this inbuilt library will help us hash out passwords
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-
-#the algorithm bcrpyt which is a hashing algorithm used in real systems
+import os
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") #this is the setup that will help us hash and verify passwords
-SECRET_KEY = "exam-portal-secret"
+#the algorithm bcrpyt which is a hashing algorithm used in real systems
+SECRET_KEY = os.getenv("SECRET_KEY", "exam-portal-secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
+
 
 #---function to check if the entered password matches the stored password-----
 def verify_password(plain_password,hashed_password):
