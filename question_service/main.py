@@ -29,7 +29,12 @@ def get_curr_teacher(authorization: str = Header(default="")):
     if user.get("role")!="teacher":
         raise HTTPException(status_code=403,detail='NOT AUTHORIZED')
     return user
-
+def get_curr_user(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    return user
 #pdf upload
 
 @app.post("/upload-pdf")
@@ -60,9 +65,9 @@ def add_mcqs(mcq:schemas.MCQCreation, db: Session=Depends(get_db), user=Depends(
     return new
 
 @app.get("/questions/{exam_id}")
-def get_questions(exam_id:int,db:Session=Depends(get_db)):
+def get_questions(exam_id: int, db: Session = Depends(get_db), user=Depends(get_curr_user)):
     return db.query(models.Question).filter(
-        models.Question.exam_id==exam_id
+        models.Question.exam_id == exam_id
     ).all()
 
 @app.get("/")
