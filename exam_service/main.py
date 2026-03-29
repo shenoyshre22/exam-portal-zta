@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String
 from database import SessionLocal, engine, Base
+from auth_client import verify_token
 
 app = FastAPI(title="Exam Service")
 
@@ -34,14 +35,32 @@ def get_db():
     finally:
         db.close()
 
+#to grant access only to teachers for certain endpoints
+def get_curr_teacher(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    if user.get("role") != "teacher":
+        raise HTTPException(status_code=403, detail="Teachers only")
+    return user
+
+
+# to grant access to any logged in user
+def get_curr_user(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    return user
+
 
 @app.get("/")
 def root():
     return {"message": "Exam Service Running"}
 
-
 @app.post("/exams")
-def create_exam(payload: ExamCreate, db: Session = Depends(get_db)):
+def create_exam(payload: ExamCreate, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
     exam = Exam(
         title=payload.title,
         description=payload.description,
@@ -53,14 +72,13 @@ def create_exam(payload: ExamCreate, db: Session = Depends(get_db)):
     db.refresh(exam)
     return exam
 
-
 @app.get("/exams")
-def list_exams(db: Session = Depends(get_db)):
+def list_exams(db: Session = Depends(get_db), user=Depends(get_curr_user)):
     return db.query(Exam).all()
 
 
 @app.get("/exams/{exam_id}")
-def get_exam(exam_id: int, db: Session = Depends(get_db)):
+def get_exam(exam_id: int, db: Session = Depends(get_db), user=Depends(get_curr_user)):
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
