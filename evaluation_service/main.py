@@ -1,3 +1,4 @@
+from logger import log_event
 from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -122,6 +123,10 @@ def evaluate(data: EvaluationRequest, db: Session = Depends(get_db), user=Depend
         existing.percentage = percentage
         db.commit()
         db.refresh(existing)
+
+        # HERE — when record already existed and was updated
+        log_event(data.student_id, "evaluation", "EVALUATION_UPDATED", f"Score {score}/{total} for exam {data.exam_id}")
+
         return {
             "message": "Evaluation updated",
             "student_id": existing.student_id,
@@ -142,6 +147,9 @@ def evaluate(data: EvaluationRequest, db: Session = Depends(get_db), user=Depend
     db.commit()
     db.refresh(record)
 
+    # HERE — when a brand new evaluation record was created
+    log_event(data.student_id, "evaluation", "EVALUATION_STORED", f"Score {score}/{total} for exam {data.exam_id}")
+
     return {
         "message": "Evaluation stored",
         "student_id": record.student_id,
@@ -151,8 +159,7 @@ def evaluate(data: EvaluationRequest, db: Session = Depends(get_db), user=Depend
         "percentage": record.percentage,
     }
 
-
-# FIXED — teacher only
+# FIXED — so its for teacher only
 @app.get("/evaluations/{student_id}")
 def get_student_evaluations(student_id: str, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
     rows = db.query(Evaluation).filter(Evaluation.student_id == student_id).all()
