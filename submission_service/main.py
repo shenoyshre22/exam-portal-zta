@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
+from datetime import datetime , timezone 
 from pydantic import BaseModel
 
 app = FastAPI(title="Submission Service")
@@ -17,7 +17,7 @@ class Submission(Base):
     exam_id = Column(String)
     question_id = Column(String)
     answer = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 Base.metadata.create_all(bind=engine)
