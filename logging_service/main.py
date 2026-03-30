@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 app = FastAPI(title="Logging Service")
@@ -13,14 +13,13 @@ app = FastAPI(title="Logging Service")
 # This model defines the structure of the logs table in the database. Each log entry will have an id, user_id, service name, event type, description, and timestamp.
 class Log(Base):
     __tablename__ = "logs"
-#details of the user to be taken 
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String)
     service = Column(String)
     event_type = Column(String)
     description = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 # Create tables
 Base.metadata.create_all(bind=engine)
 
