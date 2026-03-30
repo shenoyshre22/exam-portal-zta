@@ -1,10 +1,11 @@
-from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from datetime import datetime, timezone
+from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, Float, DateTime
 import requests
 from database import SessionLocal, engine, Base
+from auth_client import verify_token
 
 EVALUATION_SERVICE_URL = "http://localhost:5005"
 
@@ -21,7 +22,7 @@ class Result(Base):
     total = Column(Integer)
     percentage = Column(Float)
     grade = Column(String)
-    generated_at = Column(DateTime, default=datetime.utcnow)
+    generated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))  # FIXED
 
 
 Base.metadata.create_all(bind=engine)
@@ -38,6 +39,26 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# NEW — teacher only
+def get_curr_teacher(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    if user.get("role") != "teacher":
+        raise HTTPException(status_code=403, detail="Teachers only")
+    return user
+
+
+# NEW — any logged in user, returns full user info
+def get_curr_user(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    return user
 
 
 def grade_from_percentage(percentage: float) -> str:
@@ -57,6 +78,7 @@ def evaluate(student_id: str, exam_id: str):
         response = requests.post(
             f"{EVALUATION_SERVICE_URL}/evaluate",
             json={"student_id": student_id, "exam_id": exam_id},
+            headers={"Authorization": "Bearer internal-service-token"},
             timeout=10,
         )
     except requests.RequestException:
@@ -73,8 +95,9 @@ def root():
     return {"message": "Result Service Running"}
 
 
+# FIXED — teacher only
 @app.post("/publish-result")
-def publish_result(payload: ResultRequest, db: Session = Depends(get_db)):
+def publish_result(payload: ResultRequest, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
     evaluation = evaluate(payload.student_id, payload.exam_id)
 
     score = int(evaluation.get("score", 0))
@@ -96,7 +119,7 @@ def publish_result(payload: ResultRequest, db: Session = Depends(get_db)):
         existing.total = total
         existing.percentage = percentage
         existing.grade = grade
-        existing.generated_at = datetime.utcnow()
+        existing.generated_at = datetime.now(timezone.utc)  # FIXED
         db.commit()
         db.refresh(existing)
         return existing
@@ -115,8 +138,14 @@ def publish_result(payload: ResultRequest, db: Session = Depends(get_db)):
     return result
 
 
+# FIXED — student sees own only, teacher sees anyone's
 @app.get("/results/{student_id}")
-def get_results(student_id: str, db: Session = Depends(get_db)):
+def get_results(student_id: str, db: Session = Depends(get_db), user=Depends(get_curr_user)):
+    if user["role"] == "student" and user["username"] != student_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your own results"
+        )
     return db.query(Result).filter(Result.student_id == student_id).all()
 
 
