@@ -53,6 +53,8 @@ def get_curr_user(authorization: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Missing token")
     token = authorization.split(" ", 1)[1].strip()
     user = verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
     return user
 
 
