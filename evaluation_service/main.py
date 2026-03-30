@@ -66,7 +66,9 @@ def fetch_submissions(student_id: str):
 def fetch_questions(exam_id: str):
     try:
         res = requests.get(
-            f"{QUESTION_SERVICE_URL}/questions/{exam_id}", timeout=8
+            f"{QUESTION_SERVICE_URL}/questions/{exam_id}",
+            headers={"Authorization": "Bearer internal-service-token"},
+            timeout=8
         )
         res.raise_for_status()
         return res.json()
