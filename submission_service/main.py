@@ -1,3 +1,4 @@
+from logger import log_event
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
@@ -50,8 +51,6 @@ def root():
 # 🔹 Submit answer
 @app.post("/submit-answer")
 def submit_answer(data: SubmissionCreate, db: Session = Depends(get_db)):
-
-    # ❗ Prevent duplicate submission
     existing = db.query(Submission).filter(
         Submission.student_id == data.student_id,
         Submission.exam_id == data.exam_id,
@@ -67,11 +66,10 @@ def submit_answer(data: SubmissionCreate, db: Session = Depends(get_db)):
         question_id=data.question_id,
         answer=data.answer
     )
-
     db.add(new_submission)
     db.commit()
     db.refresh(new_submission)
-
+    log_event(data.student_id, "submission", "ANSWER_SUBMITTED", f"Answer submitted for question {data.question_id} in exam {data.exam_id}")
     return {"message": "Answer submitted", "id": new_submission.id}
 
 
