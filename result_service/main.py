@@ -1,3 +1,4 @@
+from logger import log_event
 from datetime import datetime, timezone
 from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
@@ -123,6 +124,8 @@ def publish_result(payload: ResultRequest, db: Session = Depends(get_db), user=D
         db.commit()
         db.refresh(existing)
         return existing
+        # after existing record update
+        log_event(payload.student_id, "result", "RESULT_UPDATED", f"Grade {grade} for exam {payload.exam_id}")
 
     result = Result(
         student_id=payload.student_id,
@@ -135,6 +138,8 @@ def publish_result(payload: ResultRequest, db: Session = Depends(get_db), user=D
     db.add(result)
     db.commit()
     db.refresh(result)
+    # after new record created
+    log_event(payload.student_id, "result", "RESULT_PUBLISHED", f"Grade {grade} for exam {payload.exam_id}")
     return result
 
 
