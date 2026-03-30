@@ -45,7 +45,7 @@ def create_user(username: str, password: str, role: str):
             (username, hashed_password, role)
         )
         conn.commit()
-    except:
+    except Exception:
         conn.close()
         return False  # user already exists
 
