@@ -1,9 +1,11 @@
 #importing fastAPI (framework that helps build APIs) and hhtp exception to send proper error responses
+from logger import log_event #importing the logging function to log events in the logging service
 from fastapi import FastAPI, HTTPException, Header
 from models import LoginRequest, SignupRequest  #importing the data models we defined for login and signup
 from auth import authenticate_user, create_user, create_access_token, verify_token #importing the auth+ user creation login
 from database import create_users_table , get_db_connection #importing database setup functions
 from passlib.context import CryptContext #for hashing passwords
+
 #creating FastAPI instance
 app = FastAPI()
 #setup password hashing context--> to hash passwords before storing them
@@ -34,24 +36,32 @@ def home():
 
     #---signup API to create a new user--- 
 @app.post("/signup")
-def signup(data: SignupRequest): # takes in the inputs username , password and role (student/teacher)
-        if data.role not in ["student", "teacher"]:  # to avoid any other role but student or teacher
-            raise HTTPException(status_code=400, detail="Role must be either 'student' or 'teacher'") #if role is not valid , send error response
-        success = create_user(data.username, data.password, data.role) #create user using the function we defined in auth.py
-        if not success: # if user already exists and someone tries to sign in 
-            raise HTTPException(status_code=400, detail="Username already exists") #if user already exists , send error response
-        return {"message": "User created successfully"} #if user is created successfully , send success response 
+def signup(data: SignupRequest):
+    if data.role not in ["student", "teacher"]:
+        raise HTTPException(status_code=400, detail="Role must be either 'student' or 'teacher'")
+    success = create_user(data.username, data.password, data.role)
+    if not success:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    # NEW
+    log_event(data.username, "login", "SIGNUP", f"New {data.role} account created")
+    return {"message": "User created successfully"}
 
     
 #-- login API (to authenticate existing user and return their role)---
 @app.post("/login")
-def login(data: LoginRequest): #takes in username and password as input , validated and verifies
-    user = authenticate_user(data.username, data.password) #authenticate user using the function we defined in auth.py by calling it
-    if not user: #if authentication fails (likee if user doesnt exist or password is wrong)
-        raise HTTPException(status_code=401, detail="Invalid username or password") #send error response
+def login(data: LoginRequest):
+    user = authenticate_user(data.username, data.password)
+    if not user:
+        # NEW — log failed attempt
+        log_event(data.username, "login", "LOGIN_FAILED", "Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
     token = create_access_token({"sub": user["username"], "role": user["role"]})
-    return {"message": "Login successful", "role": user["role"], "access_token": token, "token_type": "bearer"} #if login is successful , send success response with the user's role (student/teacher)
-
+    
+    # NEW — log success
+    log_event(data.username, "login", "LOGIN_SUCCESS", f"User logged in as {user['role']}")
+    return {"message": "Login successful", "role": user["role"], "access_token": token, "token_type": "bearer"}
 
 @app.get("/verify-token")
 def verify_user_token(authorization: str = Header(default="")):
