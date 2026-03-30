@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String, Float, DateTime
 import requests
 from database import SessionLocal, engine, Base
-from auth_client import verify_token
+from auth_client import verify_token, INTERNAL_SERVICE_TOKEN
+
+headers={"Authorization": f"Bearer {INTERNAL_SERVICE_TOKEN}"}
 
 EVALUATION_SERVICE_URL = "http://localhost:5005"
 

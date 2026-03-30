@@ -5,8 +5,10 @@ import shutil
 from database import SessionLocal, engine
 import models,schemas
 from pdf_parser import get_from_pdf
-from auth_client import verify_token
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Header
+from auth_client import verify_token, INTERNAL_SERVICE_TOKEN
+
+headers={"Authorization": f"Bearer {INTERNAL_SERVICE_TOKEN}"}
 
 models.Base.metadata.create_all(bind=engine)
 app=FastAPI(title="Question Service")

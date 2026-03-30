@@ -6,7 +6,9 @@ from database import SessionLocal, engine, Base
 from sqlalchemy import Column, Integer, String, Float
 from datetime import datetime, timezone
 import requests
-from auth import verify_token
+from auth import verify_token,  INTERNAL_SERVICE_TOKEN
+
+headers={"Authorization": f"Bearer {INTERNAL_SERVICE_TOKEN}"}
 
 
 SUBMISSION_SERVICE_URL = "http://localhost:5004"
