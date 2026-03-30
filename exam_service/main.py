@@ -1,3 +1,4 @@
+from logger import log_event
 from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -70,6 +71,7 @@ def create_exam(payload: ExamCreate, db: Session = Depends(get_db), user=Depends
     db.add(exam)
     db.commit()
     db.refresh(exam)
+    log_event(user["username"], "exam", "EXAM_CREATED", f"Exam '{payload.title}' created with id {exam.id}")
     return exam
 
 @app.get("/exams")
