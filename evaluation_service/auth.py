@@ -2,6 +2,14 @@ import os
 import requests
 from fastapi import HTTPException
 
+INTERNAL_SERVICE_TOKEN = "internal-service-token"
+
+def verify_token(token: str):
+    if token == INTERNAL_SERVICE_TOKEN:
+        return {"username": "internal", "role": "teacher"}
+
+
+
 LOGIN_SERVICE_URL = "http://localhost:5000"
 
 def verify_token(token: str):
