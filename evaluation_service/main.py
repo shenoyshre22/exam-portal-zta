@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 from sqlalchemy import Column, Integer, String, Float
+from datetime import datetime, timezone
 import requests
+from auth import verify_token
 
 
 SUBMISSION_SERVICE_URL = "http://localhost:5004"
@@ -39,6 +41,17 @@ def get_db():
         db.close()
 
 
+# NEW — teacher only
+def get_curr_teacher(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    user = verify_token(token)
+    if user.get("role") != "teacher":
+        raise HTTPException(status_code=403, detail="Teachers only")
+    return user
+
+
 def fetch_submissions(student_id: str):
     try:
         res = requests.get(
@@ -52,7 +65,9 @@ def fetch_submissions(student_id: str):
 
 def fetch_questions(exam_id: str):
     try:
-        res = requests.get(f"{QUESTION_SERVICE_URL}/questions/{exam_id}", timeout=8)
+        res = requests.get(
+            f"{QUESTION_SERVICE_URL}/questions/{exam_id}", timeout=8
+        )
         res.raise_for_status()
         return res.json()
     except requests.RequestException:
@@ -82,8 +97,9 @@ def root():
     return {"message": "Evaluation Service Running"}
 
 
+# FIXED — teacher only
 @app.post("/evaluate")
-def evaluate(data: EvaluationRequest, db: Session = Depends(get_db)):
+def evaluate(data: EvaluationRequest, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
     submissions = fetch_submissions(data.student_id)
     filtered = [s for s in submissions if str(s.get("exam_id")) == str(data.exam_id)]
     questions = fetch_questions(data.exam_id)
@@ -134,8 +150,9 @@ def evaluate(data: EvaluationRequest, db: Session = Depends(get_db)):
     }
 
 
+# FIXED — teacher only
 @app.get("/evaluations/{student_id}")
-def get_student_evaluations(student_id: str, db: Session = Depends(get_db)):
+def get_student_evaluations(student_id: str, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
     rows = db.query(Evaluation).filter(Evaluation.student_id == student_id).all()
     return rows
 
