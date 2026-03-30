@@ -42,6 +42,8 @@ def get_curr_teacher(authorization: str = Header(default="")):
         raise HTTPException(status_code=401, detail="Missing token")
     token = authorization.split(" ", 1)[1].strip()
     user = verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
     if user.get("role") != "teacher":
         raise HTTPException(status_code=403, detail="Teachers only")
     return user

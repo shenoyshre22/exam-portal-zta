@@ -24,11 +24,13 @@ def get_db():
 
 def get_curr_teacher(authorization: str = Header(default="")):
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401,detail='MISSING TOKEN')
+        raise HTTPException(status_code=401, detail="Missing token")
     token = authorization.split(" ", 1)[1].strip()
-    user=verify_token(token)
-    if user.get("role")!="teacher":
-        raise HTTPException(status_code=403,detail='NOT AUTHORIZED')
+    user = verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if user.get("role") != "teacher":
+        raise HTTPException(status_code=403, detail="Teachers only")
     return user
 def get_curr_user(authorization: str = Header(default="")):
     if not authorization.startswith("Bearer "):
