@@ -1,4 +1,5 @@
 import requests
+import os
 from fastapi import HTTPException
 
 LOGIN_SERVICE_URL = "http://localhost:5000"
