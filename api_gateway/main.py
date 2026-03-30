@@ -29,6 +29,21 @@ def proxy(method: str, url: str, payload=None):
     if response.status_code >= 400:
         raise HTTPException(status_code=response.status_code, detail=data)
     return data
+def validate_token(authorization: str = Header(default="")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        response = requests.get(
+            f"{SERVICES['login']}/verify-token",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5,
+        )
+    except requests.RequestException:
+        raise HTTPException(status_code=503, detail="Login service unavailable")
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return response.json()
 
 
 @app.get("/")
