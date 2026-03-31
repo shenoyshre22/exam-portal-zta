@@ -682,19 +682,16 @@
 	<script>
 		const state = {
 			teacher: {
-				name: "teacher1",
+				name: localStorage.getItem("exam_portal_current_user") || "teacher1",
 				initials: "T1"
 			},
-			exams: [
-				{ id: 1, name: "Data structures", students: 12, marks: 40, status: "active", avg: 76 },
-				{ id: 2, name: "Operating systems", students: 8, marks: 30, status: "pending", avg: 0 },
-				{ id: 3, name: "Algorithms", students: 18, marks: 50, status: "closed", avg: 74 }
-			],
+			exams: [],
 			filters: {
 				search: "",
 				status: "all",
 				sort: "name"
-			}
+			},
+			loading: false
 		};
 
 		const refs = {
@@ -724,11 +721,20 @@
 			toastWrap: document.getElementById("toastWrap")
 		};
 
+		const apiBase = localStorage.getItem("exam_portal_api_base") || "";
+		const authToken = localStorage.getItem("exam_portal_token") || "";
+
 		function init() {
+			if (!authToken) {
+				window.location.href = "login.html";
+				return;
+			}
+
+			state.teacher.initials = getInitials(state.teacher.name);
 			refs.avatar.textContent = state.teacher.initials;
 			refs.username.textContent = state.teacher.name;
 			bindEvents();
-			render();
+			loadExams();
 		}
 
 		function bindEvents() {
@@ -765,6 +771,26 @@
 					closeModal();
 				}
 			});
+		}
+
+		async function loadExams() {
+			state.loading = true;
+			refs.listSummary.textContent = "Loading exams...";
+			refs.examRows.innerHTML = '<div class="empty">Fetching latest exams from backend...</div>';
+
+			try {
+				const response = await apiRequest("/exams", { method: "GET" });
+				const exams = Array.isArray(response) ? response : [];
+				state.exams = exams.map(mapExamFromApi);
+				render();
+			} catch (error) {
+				console.error("Failed to load exams", error);
+				refs.examRows.innerHTML = '<div class="empty">Could not load exams from backend. Check gateway/service status.</div>';
+				refs.listSummary.textContent = "0 exams shown";
+				toast("Backend unavailable for exams.");
+			} finally {
+				state.loading = false;
+			}
 		}
 
 		function render() {
@@ -825,20 +851,20 @@
 						</div>
 						<span class="badge ${exam.status}">${statusText}</span>
 						<button class="action" data-action="open" data-id="${exam.id}">${actionText}</button>
-						<button class="danger" data-action="delete" data-id="${exam.id}">Delete</button>
+						<button class="danger" data-action="refresh">Reload</button>
 					</article>
 				`;
 			}).join("");
 
 			refs.examRows.querySelectorAll("button[data-action]").forEach((button) => {
 				button.addEventListener("click", () => {
-					const id = Number(button.getAttribute("data-id"));
 					const action = button.getAttribute("data-action");
-
-					if (action === "open") {
-						openExamAction(id);
-					} else if (action === "delete") {
-						deleteExam(id);
+					const idAttr = button.getAttribute("data-id");
+					if (action === "open" && idAttr) {
+						openExamAction(Number(idAttr));
+					}
+					if (action === "refresh") {
+						loadExams();
 					}
 				});
 			});
@@ -857,22 +883,6 @@
 			}
 		}
 
-		function deleteExam(id) {
-			const exam = state.exams.find((item) => item.id === id);
-			if (!exam) {
-				return;
-			}
-
-			const approved = window.confirm("Delete exam: " + exam.name + "?");
-			if (!approved) {
-				return;
-			}
-
-			state.exams = state.exams.filter((item) => item.id !== id);
-			render();
-			toast("Deleted " + exam.name);
-		}
-
 		function openModal() {
 			refs.formError.textContent = "";
 			refs.examForm.reset();
@@ -886,7 +896,7 @@
 			refs.modalBackdrop.setAttribute("aria-hidden", "true");
 		}
 
-		function createExam(event) {
+		async function createExam(event) {
 			event.preventDefault();
 
 			const name = refs.examName.value.trim();
@@ -914,25 +924,111 @@
 				? (Number.isFinite(avgInput) && avgInput >= 0 && avgInput <= 100 ? avgInput : 70)
 				: 0;
 
-			state.exams.unshift({
-				id: Date.now(),
-				name,
-				students,
-				marks,
-				status,
-				avg
-			});
+			const description = `status:${status};students:${students};avg:${avg}`;
 
-			closeModal();
-			render();
-			toast("Created exam: " + name);
+			try {
+				await apiRequest("/exams", {
+					method: "POST",
+					body: JSON.stringify({
+						title: name,
+						description,
+						total_marks: marks,
+						duration_minutes: 60
+					})
+				});
+
+				closeModal();
+				toast("Created exam: " + name);
+				await loadExams();
+			} catch (error) {
+				console.error("Create exam failed", error);
+				refs.formError.textContent = readErrorMessage(error, "Could not create exam via backend.");
+			}
 		}
 
 		function logout() {
+			localStorage.removeItem("exam_portal_token");
+			localStorage.removeItem("exam_portal_role");
+			localStorage.removeItem("exam_portal_current_user");
 			toast("Logging out...");
 			setTimeout(() => {
-				window.location.href = "/login";
+				window.location.href = "login.html";
 			}, 500);
+		}
+
+		async function apiRequest(path, options = {}) {
+			const response = await fetch(`${apiBase}${path}`, {
+				method: options.method || "GET",
+				headers: {
+					"Content-Type": "application/json",
+					"Authorization": `Bearer ${authToken}`,
+					...(options.headers || {})
+				},
+				body: options.body
+			});
+
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw payload;
+			}
+
+			return payload;
+		}
+
+		function mapExamFromApi(item) {
+			const metadata = parseDescription(item.description || "");
+			const fallbackStudents = 8 + ((Number(item.id) || 1) % 17);
+			const status = metadata.status || "active";
+			const avg = Number.isFinite(metadata.avg) ? metadata.avg : (status === "closed" ? 70 : 0);
+			return {
+				id: Number(item.id),
+				name: String(item.title || "Untitled exam"),
+				students: Number.isFinite(metadata.students) ? metadata.students : fallbackStudents,
+				marks: Number(item.total_marks || 0),
+				status,
+				avg
+			};
+		}
+
+		function parseDescription(raw) {
+			const result = {};
+			raw.split(";").forEach((pair) => {
+				const parts = pair.split(":");
+				if (parts.length !== 2) {
+					return;
+				}
+				const key = parts[0].trim().toLowerCase();
+				const value = parts[1].trim();
+				if (key === "status" && ["active", "pending", "closed"].includes(value)) {
+					result.status = value;
+				}
+				if (key === "students") {
+					const n = Number(value);
+					if (Number.isFinite(n) && n > 0) {
+						result.students = n;
+					}
+				}
+				if (key === "avg") {
+					const n = Number(value);
+					if (Number.isFinite(n) && n >= 0 && n <= 100) {
+						result.avg = n;
+					}
+				}
+			});
+			return result;
+		}
+
+		function readErrorMessage(error, fallback) {
+			if (!error) {
+				return fallback;
+			}
+			if (typeof error.detail === "string") {
+				return error.detail;
+			}
+			if (error.detail && typeof error.detail.detail === "string") {
+				return error.detail.detail;
+			}
+			return fallback;
 		}
 
 		function toast(message) {
@@ -948,6 +1044,18 @@
 
 		function capitalize(value) {
 			return value.charAt(0).toUpperCase() + value.slice(1);
+		}
+
+		function getInitials(name) {
+			const cleaned = (name || "").trim();
+			if (!cleaned) {
+				return "T";
+			}
+			const parts = cleaned.split(/\s+/);
+			if (parts.length === 1) {
+				return parts[0].slice(0, 2).toUpperCase();
+			}
+			return (parts[0][0] + parts[1][0]).toUpperCase();
 		}
 
 		function escapeHtml(value) {

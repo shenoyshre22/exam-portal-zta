@@ -636,15 +636,18 @@
             
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
+            const apiBase = localStorage.getItem('exam_portal_api_base') || '';
 
             try {
-                const response = await fetch('/api/login', {
+                const response = await fetch(`${apiBase}/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ username, password })
                 });
+
+                const data = await response.json().catch(() => ({}));
 
                 if (response.ok) {
                     // Save username if "Remember me" is checked
@@ -654,15 +657,26 @@
                         localStorage.removeItem('exam_portal_username');
                     }
 
+                    // Persist auth context for dashboard pages.
+                    localStorage.setItem('exam_portal_token', data.access_token || '');
+                    localStorage.setItem('exam_portal_role', data.role || '');
+                    localStorage.setItem('exam_portal_current_user', username);
+
                     successMessage.style.display = 'block';
                     
                     // Redirect after a short delay
                     setTimeout(() => {
-                        window.location.href = '/dashboard';
+                        if (data.role === 'teacher') {
+                            window.location.href = 'teacher.html';
+                        } else if (data.role === 'student') {
+                            window.location.href = 'student.html';
+                        } else {
+                            window.location.href = 'exam.html';
+                        }
                     }, 1500);
                 } else if (response.status === 401) {
                     setLoading(false);
-                    showAlert('Invalid username or password', 'error');
+                    showAlert((data && data.detail) ? String(data.detail) : 'Invalid username or password', 'error');
                     passwordInput.value = '';
                     updatePasswordStrength('');
                     passwordInput.focus();
@@ -671,7 +685,7 @@
                     showAlert('Too many login attempts. Please try again later.', 'warning');
                 } else {
                     setLoading(false);
-                    showAlert('An error occurred. Please try again.', 'error');
+                    showAlert((data && data.detail) ? String(data.detail) : 'An error occurred. Please try again.', 'error');
                 }
             } catch (error) {
                 setLoading(false);
