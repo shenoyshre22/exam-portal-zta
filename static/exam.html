@@ -707,8 +707,14 @@
 			toastWrap: document.getElementById("toastWrap")
 		};
 
-		function init() {
+		async function init() {
 			if (!token || localStorage.getItem("exam_portal_role") !== "teacher") {
+				window.location.href = "login.html";
+				return;
+			}
+
+			const ok = await verifySession();
+			if (!ok) {
 				window.location.href = "login.html";
 				return;
 			}
@@ -717,7 +723,8 @@
 			refs.avatar.textContent = state.teacher.initials;
 			refs.identityName.textContent = state.teacher.username;
 			bindEvents();
-			loadExams();
+			await loadExams();
+			await logPageVisit();
 		}
 
 		function bindEvents() {
@@ -1099,6 +1106,32 @@
 				throw payload;
 			}
 			return payload;
+		}
+
+		async function verifySession() {
+			try {
+				await apiRequest("/auth/verify", { method: "GET" });
+				return true;
+			} catch (error) {
+				console.error("Session verification failed", error);
+				return false;
+			}
+		}
+
+		async function logPageVisit() {
+			try {
+				await apiRequest("/log-event", {
+					method: "POST",
+					body: JSON.stringify({
+						user_id: state.teacher.username,
+						service: "frontend",
+						event_type: "EXAM_PAGE_OPENED",
+						description: "Exam management page opened"
+					})
+				});
+			} catch (error) {
+				console.warn("Failed to write page visit log", error);
+			}
 		}
 
 		function mapExamFromApi(item) {
