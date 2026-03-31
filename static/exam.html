@@ -659,23 +659,20 @@
 	<script>
 		const state = {
 			teacher: {
-				username: "teacher1",
+				username: localStorage.getItem("exam_portal_current_user") || "teacher1",
 				initials: "T1"
 			},
-			exams: [
-				{ id: 1, name: "Data structures", students: 12, marks: 40, status: "active", avgScore: 79 },
-				{ id: 2, name: "Operating systems", students: 8, marks: 30, status: "pending", avgScore: 0 },
-				{ id: 3, name: "Algorithms", students: 18, marks: 50, status: "closed", avgScore: 74 },
-				{ id: 4, name: "Computer networks", students: 20, marks: 60, status: "active", avgScore: 82 },
-				{ id: 5, name: "Database systems", students: 16, marks: 50, status: "pending", avgScore: 0 },
-				{ id: 6, name: "Software testing", students: 14, marks: 35, status: "closed", avgScore: 71 }
-			],
+			exams: [],
 			filters: {
 				search: "",
 				status: "all",
 				sortBy: "name"
-			}
+			},
+			loading: false
 		};
+
+		const apiBase = localStorage.getItem("exam_portal_api_base") || "";
+		const token = localStorage.getItem("exam_portal_token") || "";
 
 		const refs = {
 			avatar: document.getElementById("avatar"),
@@ -704,10 +701,16 @@
 		};
 
 		function init() {
+			if (!token || localStorage.getItem("exam_portal_role") !== "teacher") {
+				window.location.href = "login.html";
+				return;
+			}
+
+			state.teacher.initials = getInitials(state.teacher.username);
 			refs.avatar.textContent = state.teacher.initials;
 			refs.identityName.textContent = state.teacher.username;
 			bindEvents();
-			render();
+			loadExams();
 		}
 
 		function bindEvents() {
@@ -749,6 +752,26 @@
 		function render() {
 			renderMetrics();
 			renderExams();
+		}
+
+		async function loadExams() {
+			state.loading = true;
+			refs.listHint.textContent = "Loading exams from backend...";
+			refs.examList.innerHTML = '<div class="empty">Fetching exams via gateway...</div>';
+
+			try {
+				const payload = await apiRequest("/exams", { method: "GET" });
+				const rows = Array.isArray(payload) ? payload : [];
+				state.exams = rows.map(mapExamFromApi);
+				render();
+			} catch (error) {
+				console.error("Exam fetch failed", error);
+				refs.examList.innerHTML = '<div class="empty">Could not load exams. Ensure gateway and exam service are running.</div>';
+				refs.listHint.textContent = readErrorMessage(error, "0 exams shown");
+				showToast("Backend unavailable for exam list.");
+			} finally {
+				state.loading = false;
+			}
 		}
 
 		function renderMetrics() {
@@ -816,17 +839,23 @@
 			});
 		}
 
-		function handleRowAction(examId) {
+		async function handleRowAction(examId) {
 			const exam = state.exams.find((item) => item.id === examId);
 			if (!exam) {
 				return;
 			}
 
-			if (exam.status === "closed") {
-				showToast("Opening results for " + exam.name);
-			} else {
-				showToast("Opening evaluation for " + exam.name);
+			const studentId = window.prompt("Enter student id for action", "student1");
+			if (!studentId) {
+				return;
 			}
+
+			if (exam.status === "closed") {
+				await fetchResults(studentId);
+				return;
+			}
+
+			await evaluateAndPublish(exam, studentId);
 		}
 
 		function openModal() {
@@ -842,7 +871,7 @@
 			refs.modalBackdrop.setAttribute("aria-hidden", "true");
 		}
 
-		function handleCreateExam(event) {
+		async function handleCreateExam(event) {
 			event.preventDefault();
 
 			const name = refs.examName.value.trim();
@@ -865,26 +894,152 @@
 				return;
 			}
 
-			const item = {
-				id: Date.now(),
-				name,
-				students,
-				marks,
-				status,
-				avgScore: status === "closed" ? 65 + Math.floor(Math.random() * 30) : 0
-			};
+			try {
+				await apiRequest("/exams", {
+					method: "POST",
+					body: JSON.stringify({
+						title: name,
+						description: `status:${status};students:${students};avg:${status === "closed" ? 70 : 0}`,
+						total_marks: marks,
+						duration_minutes: 60
+					})
+				});
 
-			state.exams.unshift(item);
-			closeModal();
-			render();
-			showToast("Exam created: " + name);
+				closeModal();
+				showToast("Exam created: " + name);
+				await loadExams();
+			} catch (error) {
+				refs.formError.textContent = readErrorMessage(error, "Could not create exam via backend.");
+			}
 		}
 
 		function logout() {
+			localStorage.removeItem("exam_portal_token");
+			localStorage.removeItem("exam_portal_role");
+			localStorage.removeItem("exam_portal_current_user");
 			showToast("Logging out...");
 			setTimeout(() => {
-				window.location.href = "/login";
+				window.location.href = "login.html";
 			}, 400);
+		}
+
+		async function evaluateAndPublish(exam, studentId) {
+			try {
+				showToast("Evaluating " + studentId + " for " + exam.name + "...");
+				const evaluation = await apiRequest("/evaluate", {
+					method: "POST",
+					body: JSON.stringify({
+						student_id: studentId,
+						exam_id: String(exam.id)
+					})
+				});
+
+				showToast("Score: " + evaluation.score + "/" + evaluation.total + " (" + Math.round(evaluation.percentage) + "%)");
+
+				await apiRequest("/publish-result", {
+					method: "POST",
+					body: JSON.stringify({
+						student_id: studentId,
+						exam_id: String(exam.id)
+					})
+				});
+
+				showToast("Result published for " + studentId);
+			} catch (error) {
+				showToast(readErrorMessage(error, "Evaluation/publish failed"));
+			}
+		}
+
+		async function fetchResults(studentId) {
+			try {
+				const rows = await apiRequest("/results/" + encodeURIComponent(studentId), { method: "GET" });
+				const count = Array.isArray(rows) ? rows.length : 0;
+				showToast("Fetched " + count + " result(s) for " + studentId);
+			} catch (error) {
+				showToast(readErrorMessage(error, "Could not fetch results"));
+			}
+		}
+
+		async function apiRequest(path, options = {}) {
+			const response = await fetch(`${apiBase}${path}`, {
+				method: options.method || "GET",
+				headers: {
+					"Content-Type": "application/json",
+					"Authorization": `Bearer ${token}`,
+					...(options.headers || {})
+				},
+				body: options.body
+			});
+
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw payload;
+			}
+			return payload;
+		}
+
+		function mapExamFromApi(item) {
+			const metadata = parseDescription(item.description || "");
+			const status = metadata.status || "active";
+			const students = Number.isFinite(metadata.students) ? metadata.students : 10 + ((Number(item.id) || 1) % 10);
+			const avgScore = Number.isFinite(metadata.avg) ? metadata.avg : (status === "closed" ? 70 : 0);
+			return {
+				id: Number(item.id),
+				name: String(item.title || "Untitled exam"),
+				students,
+				marks: Number(item.total_marks || 0),
+				status,
+				avgScore
+			};
+		}
+
+		function parseDescription(raw) {
+			const result = {};
+			String(raw).split(";").forEach((pair) => {
+				const parts = pair.split(":");
+				if (parts.length !== 2) {
+					return;
+				}
+				const key = parts[0].trim().toLowerCase();
+				const value = parts[1].trim();
+				if (key === "status" && ["active", "pending", "closed"].includes(value)) {
+					result.status = value;
+				}
+				if (key === "students") {
+					const n = Number(value);
+					if (Number.isFinite(n) && n > 0) {
+						result.students = n;
+					}
+				}
+				if (key === "avg") {
+					const n = Number(value);
+					if (Number.isFinite(n) && n >= 0 && n <= 100) {
+						result.avg = n;
+					}
+				}
+			});
+			return result;
+		}
+
+		function readErrorMessage(error, fallback) {
+			if (!error) {
+				return fallback;
+			}
+			if (typeof error.detail === "string") {
+				return error.detail;
+			}
+			if (error.detail && typeof error.detail.detail === "string") {
+				return error.detail.detail;
+			}
+			return fallback;
+		}
+
+		function getInitials(value) {
+			const clean = String(value || "").trim();
+			if (!clean) {
+				return "T";
+			}
+			return clean.slice(0, 2).toUpperCase();
 		}
 
 		function showToast(message) {
