@@ -1,0 +1,181 @@
+version: '3.8'
+
+services:
+  # Authentication Service
+  login_service:
+    build: ./login_service
+    container_name: login_service
+    ports:
+      - "5000:5000"
+    environment:
+      - SERVICE_NAME=login_service
+    networks:
+      - exam_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Question Management Service
+  question_service:
+    build: ./question_service
+    container_name: question_service
+    ports:
+      - "5001:5001"
+    environment:
+      - SERVICE_NAME=question_service
+    networks:
+      - exam_network
+    depends_on:
+      - login_service
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Exam Service
+  exam_service:
+    build: ./exam_service
+    container_name: exam_service
+    ports:
+      - "5002:5002"
+    environment:
+      - SERVICE_NAME=exam_service
+    networks:
+      - exam_network
+    depends_on:
+      - login_service
+    expose:
+      - "5002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Logging Service
+  logging_service:
+    build: ./logging_service
+    container_name: logging_service
+    ports:
+      - "5003:5003"
+    environment:
+      - SERVICE_NAME=logging_service
+    networks:
+      - exam_network
+    expose:
+      - "5003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Submission Service
+  submission_service:
+    build: ./submission_service
+    container_name: submission_service
+    ports:
+      - "5004:5004"
+    environment:
+      - SERVICE_NAME=submission_service
+    networks:
+      - exam_network
+    depends_on:
+      - exam_service
+    expose:
+      - "5004"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Evaluation Service
+  evaluation_service:
+    build: ./evaluation_service
+    container_name: evaluation_service
+    ports:
+      - "5005:5005"
+    environment:
+      - SERVICE_NAME=evaluation_service
+    networks:
+      - exam_network
+    depends_on:
+      - submission_service
+    expose:
+      - "5005"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Result Service
+  result_service:
+    build: ./result_service
+    container_name: result_service
+    ports:
+      - "5006:5006"
+    environment:
+      - SERVICE_NAME=result_service
+    networks:
+      - exam_network
+    depends_on:
+      - evaluation_service
+    expose:
+      - "5006"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # API Gateway (Main Entry Point)
+  api_gateway:
+    build: ./api_gateway
+    container_name: api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_NAME=api_gateway
+    networks:
+      - exam_network
+    depends_on:
+      login_service:
+        condition: service_healthy
+      question_service:
+        condition: service_healthy
+      exam_service:
+        condition: service_healthy
+      logging_service:
+        condition: service_healthy
+      submission_service:
+        condition: service_healthy
+      evaluation_service:
+        condition: service_healthy
+      result_service:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  exam_network:
+    driver: bridge
