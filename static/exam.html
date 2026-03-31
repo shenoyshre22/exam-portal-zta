@@ -564,7 +564,7 @@
 				<div class="sidebar-group">
 					<div class="sidebar-label">Monitor</div>
 					<ul class="menu">
-						<li class="menu-item">Activity logs</li>
+						<li class="menu-item" id="activityLogsBtn">Activity logs</li>
 					</ul>
 				</div>
 			</aside>
@@ -605,6 +605,9 @@
 								<option value="students">Sort: Students</option>
 								<option value="marks">Sort: Marks</option>
 							</select>
+							<button id="uploadPdfBtn" class="ghost-btn">Upload PDF</button>
+							<input id="uploadPdfInput" type="file" accept="application/pdf" style="display:none;">
+							<button id="quickMcqBtn" class="ghost-btn">+ Quick MCQ</button>
 							<button id="newExamBtn" class="primary-btn">+ New exam</button>
 						</div>
 					</div>
@@ -687,6 +690,10 @@
 			listHint: document.getElementById("listHint"),
 			examList: document.getElementById("examList"),
 			newExamBtn: document.getElementById("newExamBtn"),
+			uploadPdfBtn: document.getElementById("uploadPdfBtn"),
+			uploadPdfInput: document.getElementById("uploadPdfInput"),
+			quickMcqBtn: document.getElementById("quickMcqBtn"),
+			activityLogsBtn: document.getElementById("activityLogsBtn"),
 			logoutBtn: document.getElementById("logoutBtn"),
 			modalBackdrop: document.getElementById("modalBackdrop"),
 			closeModalBtn: document.getElementById("closeModalBtn"),
@@ -730,6 +737,10 @@
 			});
 
 			refs.newExamBtn.addEventListener("click", openModal);
+			refs.uploadPdfBtn.addEventListener("click", () => refs.uploadPdfInput.click());
+			refs.uploadPdfInput.addEventListener("change", uploadQuestionPdf);
+			refs.quickMcqBtn.addEventListener("click", quickAddMcq);
+			refs.activityLogsBtn.addEventListener("click", viewActivityLogs);
 			refs.closeModalBtn.addEventListener("click", closeModal);
 			refs.cancelModalBtn.addEventListener("click", closeModal);
 			refs.logoutBtn.addEventListener("click", logout);
@@ -928,6 +939,22 @@
 
 		async function evaluateAndPublish(exam, studentId) {
 			try {
+				const questions = await apiRequest("/questions/" + exam.id, { method: "GET" });
+				const submissions = await apiRequest("/submissions/" + encodeURIComponent(studentId), { method: "GET" });
+				const examSubmissions = Array.isArray(submissions)
+					? submissions.filter((item) => String(item.exam_id) === String(exam.id))
+					: [];
+
+				if (!Array.isArray(questions) || !questions.length) {
+					showToast("No questions found for this exam.");
+					return;
+				}
+
+				if (!examSubmissions.length) {
+					showToast("No submissions found for " + studentId + " in this exam.");
+					return;
+				}
+
 				showToast("Evaluating " + studentId + " for " + exam.name + "...");
 				const evaluation = await apiRequest("/evaluate", {
 					method: "POST",
@@ -950,6 +977,99 @@
 				showToast("Result published for " + studentId);
 			} catch (error) {
 				showToast(readErrorMessage(error, "Evaluation/publish failed"));
+			}
+		}
+
+		async function quickAddMcq() {
+			if (!state.exams.length) {
+				showToast("Create an exam first, then add MCQs.");
+				return;
+			}
+
+			const examId = window.prompt("Enter exam id for MCQ", String(state.exams[0].id));
+			if (!examId) {
+				return;
+			}
+			const questionText = window.prompt("Question text", "What is 2 + 2?");
+			if (!questionText) {
+				return;
+			}
+			const optionA = window.prompt("Option A", "3") || "";
+			const optionB = window.prompt("Option B", "4") || "";
+			const optionC = window.prompt("Option C", "5") || "";
+			const optionD = window.prompt("Option D", "6") || "";
+			const correct = (window.prompt("Correct option letter (A/B/C/D)", "B") || "B").toUpperCase();
+
+			try {
+				await apiRequest("/questions/add-mcq", {
+					method: "POST",
+					body: JSON.stringify({
+						exam_id: Number(examId),
+						question_text: questionText,
+						option_a: optionA,
+						option_b: optionB,
+						option_c: optionC,
+						option_d: optionD,
+						correct_answer: correct
+					})
+				});
+				showToast("MCQ added to exam " + examId);
+			} catch (error) {
+				showToast(readErrorMessage(error, "Could not add MCQ"));
+			}
+		}
+
+		async function uploadQuestionPdf() {
+			const file = refs.uploadPdfInput.files && refs.uploadPdfInput.files[0];
+			if (!file) {
+				return;
+			}
+			if (!state.exams.length) {
+				showToast("Create an exam first, then upload PDF.");
+				refs.uploadPdfInput.value = "";
+				return;
+			}
+
+			const examId = window.prompt("Enter exam id for PDF upload", String(state.exams[0].id));
+			if (!examId) {
+				refs.uploadPdfInput.value = "";
+				return;
+			}
+
+			const formData = new FormData();
+			formData.append("file", file);
+
+			try {
+				const response = await fetch(`${apiBase}/questions/upload-pdf?exam_id=${encodeURIComponent(examId)}`, {
+					method: "POST",
+					headers: {
+						"Authorization": `Bearer ${token}`
+					},
+					body: formData
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw payload;
+				}
+				showToast("PDF processed. Questions added: " + String(payload.questions_added || 0));
+			} catch (error) {
+				showToast(readErrorMessage(error, "Could not upload PDF"));
+			} finally {
+				refs.uploadPdfInput.value = "";
+			}
+		}
+
+		async function viewActivityLogs() {
+			try {
+				const logs = await apiRequest("/logs/" + encodeURIComponent(state.teacher.username), { method: "GET" });
+				if (!Array.isArray(logs) || !logs.length) {
+					showToast("No logs found for " + state.teacher.username);
+					return;
+				}
+				const latest = logs.slice(-3).map((l) => `${l.service}:${l.event_type}`).join(" | ");
+				showToast("Recent logs: " + latest);
+			} catch (error) {
+				showToast(readErrorMessage(error, "Could not fetch activity logs"));
 			}
 		}
 
