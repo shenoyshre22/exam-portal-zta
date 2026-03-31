@@ -257,6 +257,30 @@
             border-radius: 4px;
         }
 
+        .completed-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #166534;
+            background-color: #dcfce7;
+            border-radius: 4px;
+        }
+
+        .closed-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #334155;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+        }
+
         .results-row {
             align-items: center;
         }
@@ -338,6 +362,135 @@
 
         .content-area::-webkit-scrollbar-thumb:hover {
             background: #999999;
+        }
+
+        .status-banner {
+            font-size: 12px;
+            color: #6b7280;
+            background: #ffffff;
+            border: 0.5px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-top: -12px;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            padding: 16px;
+        }
+
+        .exam-modal {
+            width: min(760px, 100%);
+            background: #ffffff;
+            border: 0.5px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 88vh;
+            overflow: auto;
+        }
+
+        .exam-modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .exam-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .question-box {
+            border: 0.5px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: #fafaf9;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .question-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .question-text {
+            font-size: 14px;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+
+        .option-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-button {
+            border: 0.5px solid #d9d9d9;
+            border-radius: 8px;
+            background: #ffffff;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #1f2937;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .option-button:hover {
+            border-color: #6b46c1;
+            background: #f5f3ff;
+        }
+
+        .answer-input {
+            width: 100%;
+            min-height: 96px;
+            border: 0.5px solid #d9d9d9;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .exam-modal-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .ghost-button {
+            border: 0.5px solid #d9d9d9;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #374151;
+            cursor: pointer;
+        }
+
+        .ghost-button:hover {
+            background: #f9fafb;
+        }
+
+        .exam-feedback {
+            font-size: 12px;
+            color: #6b7280;
         }
 
         /* Responsive Design */
@@ -428,6 +581,7 @@
         <!-- Content Area -->
         <div class="content-area">
             <div class="greeting" id="greeting">Welcome back, student1</div>
+            <div class="status-banner" id="statusBanner">Connecting to backend services...</div>
 
             <!-- Metrics Grid -->
             <div class="metrics-grid">
@@ -470,168 +624,456 @@
         </div>
     </div>
 
+    <div class="modal-backdrop" id="examModalBackdrop" aria-hidden="true">
+        <div class="exam-modal" role="dialog" aria-modal="true" aria-labelledby="examModalTitle">
+            <div class="exam-modal-head">
+                <h3 class="exam-modal-title" id="examModalTitle">Exam Session</h3>
+                <button class="ghost-button" id="closeExamModalBtn" type="button">Close</button>
+            </div>
+            <div class="question-box">
+                <div class="question-meta" id="questionMeta">Question 0 of 0</div>
+                <div class="question-text" id="questionText">Loading question...</div>
+                <div class="option-list" id="optionList"></div>
+                <textarea class="answer-input" id="answerInput" placeholder="Type your answer here..."></textarea>
+            </div>
+            <div class="exam-modal-actions">
+                <div class="exam-feedback" id="examFeedback">Choose an answer and submit.</div>
+                <div>
+                    <button class="ghost-button" id="nextQuestionBtn" type="button">Next</button>
+                    <button class="start-button" id="submitAnswerBtn" type="button">Submit Answer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Mock Data
-        const mockExams = [
-            {
-                id: 1,
-                name: 'Data Structures',
-                duration: '2 hours',
-                marks: 100,
-                status: 'available'
-            },
-            {
-                id: 2,
-                name: 'Algorithms',
-                duration: '2.5 hours',
-                marks: 100,
-                status: 'available'
-            },
-            {
-                id: 3,
-                name: 'Web Development',
-                duration: '1.5 hours',
-                marks: 50,
-                status: 'upcoming'
-            },
-            {
-                id: 4,
-                name: 'Database Design',
-                duration: '2 hours',
-                marks: 75,
-                status: 'upcoming'
-            }
-        ];
+        const apiBase = localStorage.getItem('exam_portal_api_base') || '';
+        const token = localStorage.getItem('exam_portal_token') || '';
+        const role = localStorage.getItem('exam_portal_role') || '';
 
-        const mockResults = [
-            {
-                id: 1,
-                name: 'Java Programming',
-                grade: 'A',
-                percentage: 92
-            },
-            {
-                id: 2,
-                name: 'Operating Systems',
-                grade: 'B',
-                percentage: 85
-            },
-            {
-                id: 3,
-                name: 'Software Engineering',
-                grade: 'A',
-                percentage: 88
-            }
-        ];
+        const state = {
+            studentId: localStorage.getItem('exam_portal_current_user') || 'student1',
+            exams: [],
+            results: [],
+            currentExam: null,
+            questions: [],
+            questionIndex: 0,
+            lastSubmittedQuestionId: null
+        };
 
-        // Initialize Dashboard
+        const refs = {
+            username: document.getElementById('username'),
+            userAvatar: document.getElementById('userAvatar'),
+            greeting: document.getElementById('greeting'),
+            examsTaken: document.getElementById('examsTaken'),
+            avgScore: document.getElementById('avgScore'),
+            bestGrade: document.getElementById('bestGrade'),
+            pendingExams: document.getElementById('pendingExams'),
+            examList: document.getElementById('examList'),
+            resultsList: document.getElementById('resultsList'),
+            statusBanner: document.getElementById('statusBanner'),
+            examModalBackdrop: document.getElementById('examModalBackdrop'),
+            examModalTitle: document.getElementById('examModalTitle'),
+            closeExamModalBtn: document.getElementById('closeExamModalBtn'),
+            questionMeta: document.getElementById('questionMeta'),
+            questionText: document.getElementById('questionText'),
+            optionList: document.getElementById('optionList'),
+            answerInput: document.getElementById('answerInput'),
+            submitAnswerBtn: document.getElementById('submitAnswerBtn'),
+            nextQuestionBtn: document.getElementById('nextQuestionBtn'),
+            examFeedback: document.getElementById('examFeedback')
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
-            loadUserData();
-            loadExams();
-            loadResults();
+            initializeSession();
         });
 
-        function loadUserData() {
-            // In a real app, this would fetch from the backend
-            const userData = {
-                username: 'student1',
-                initials: 'S1',
-                examsTaken: 3,
-                avgScore: 78,
-                bestGrade: 'A',
-                pendingExams: 2
-            };
+        async function initializeSession() {
+            if (!token || role !== 'student') {
+                window.location.href = 'login.html';
+                return;
+            }
 
-            document.getElementById('username').textContent = userData.username;
-            document.getElementById('userAvatar').textContent = userData.initials.substring(0, 2);
-            document.getElementById('greeting').textContent = `Welcome back, ${userData.username}`;
-            document.getElementById('examsTaken').textContent = userData.examsTaken;
-            document.getElementById('avgScore').textContent = `${userData.avgScore}%`;
-            document.getElementById('bestGrade').textContent = userData.bestGrade;
-            document.getElementById('pendingExams').textContent = userData.pendingExams;
+            refs.username.textContent = state.studentId;
+            refs.userAvatar.textContent = getInitials(state.studentId);
+            refs.greeting.textContent = `Welcome back, ${state.studentId}`;
+
+            bindEvents();
+            await refreshDashboard();
         }
 
-        function loadExams() {
-            const examList = document.getElementById('examList');
-            
-            if (mockExams.length === 0) {
-                examList.innerHTML = `
+        function bindEvents() {
+            refs.closeExamModalBtn.addEventListener('click', closeExamModal);
+            refs.examModalBackdrop.addEventListener('click', (event) => {
+                if (event.target === refs.examModalBackdrop) {
+                    closeExamModal();
+                }
+            });
+            refs.submitAnswerBtn.addEventListener('click', submitCurrentAnswer);
+            refs.nextQuestionBtn.addEventListener('click', goToNextQuestion);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.altKey && e.key.toLowerCase() === 'l') {
+                    logout();
+                }
+                if (e.key === 'Escape' && refs.examModalBackdrop.style.display === 'flex') {
+                    closeExamModal();
+                }
+            });
+        }
+
+        async function refreshDashboard() {
+            refs.statusBanner.textContent = 'Loading exams and results from backend services...';
+
+            const [examsRes, resultsRes] = await Promise.allSettled([
+                apiRequest('/exams', { method: 'GET' }),
+                apiRequest(`/results/${state.studentId}`, { method: 'GET' })
+            ]);
+
+            if (examsRes.status === 'fulfilled') {
+                state.exams = (Array.isArray(examsRes.value) ? examsRes.value : []).map(mapExamFromApi);
+            } else {
+                state.exams = [];
+            }
+
+            if (resultsRes.status === 'fulfilled') {
+                state.results = Array.isArray(resultsRes.value) ? resultsRes.value : [];
+            } else {
+                state.results = [];
+            }
+
+            renderExams();
+            renderResults();
+            renderMetrics();
+
+            const connected = [
+                examsRes.status === 'fulfilled' ? 'exam service' : null,
+                resultsRes.status === 'fulfilled' ? 'result service' : null
+            ].filter(Boolean);
+
+            if (connected.length) {
+                refs.statusBanner.textContent = `Connected: ${connected.join(', ')}. Question/submission services are used when you start an exam.`;
+            } else {
+                refs.statusBanner.textContent = 'Could not reach backend services. Verify API gateway and microservices are running.';
+            }
+        }
+
+        function renderMetrics() {
+            const taken = new Set(state.results.map((r) => String(r.exam_id))).size;
+            const avg = state.results.length
+                ? Math.round(state.results.reduce((sum, r) => sum + Number(r.percentage || 0), 0) / state.results.length)
+                : 0;
+            const best = getBestGrade(state.results.map((r) => String(r.grade || '').toUpperCase()));
+            const pending = Math.max(state.exams.length - taken, 0);
+
+            refs.examsTaken.textContent = String(taken);
+            refs.avgScore.textContent = `${avg}%`;
+            refs.bestGrade.textContent = best;
+            refs.pendingExams.textContent = String(pending);
+        }
+
+        function renderExams() {
+            if (!state.exams.length) {
+                refs.examList.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">📚</div>
-                        <div class="empty-text">No exams available at the moment</div>
+                        <div class="empty-text">No exams available right now</div>
                     </div>
                 `;
                 return;
             }
 
-            examList.innerHTML = mockExams.map(exam => `
-                <div class="exam-row">
-                    <div class="exam-info">
-                        <div class="exam-name">${exam.name}</div>
-                        <div class="exam-metadata">${exam.duration} • ${exam.marks} marks</div>
+            const completed = new Set(state.results.map((r) => Number(r.exam_id)));
+
+            refs.examList.innerHTML = state.exams.map((exam) => {
+                const done = completed.has(exam.id);
+                const action = done
+                    ? '<span class="completed-badge">Completed</span>'
+                    : exam.status === 'pending'
+                        ? '<span class="upcoming-badge">Upcoming</span>'
+                        : exam.status === 'closed'
+                            ? '<span class="closed-badge">Closed</span>'
+                            : `<button class="start-button" data-exam-id="${exam.id}">Start</button>`;
+
+                return `
+                    <div class="exam-row">
+                        <div class="exam-info">
+                            <div class="exam-name">${escapeHtml(exam.name)}</div>
+                            <div class="exam-metadata">${exam.duration} • ${exam.marks} marks</div>
+                        </div>
+                        <div class="exam-action">${action}</div>
                     </div>
-                    <div class="exam-action">
-                        ${exam.status === 'available' 
-                            ? `<button class="start-button" onclick="startExam(${exam.id})">Start</button>`
-                            : `<span class="upcoming-badge">Upcoming</span>`
-                        }
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+
+            refs.examList.querySelectorAll('button[data-exam-id]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const examId = Number(btn.getAttribute('data-exam-id'));
+                    startExam(examId);
+                });
+            });
         }
 
-        function loadResults() {
-            const resultsList = document.getElementById('resultsList');
-            
-            if (mockResults.length === 0) {
-                resultsList.innerHTML = `
+        function renderResults() {
+            if (!state.results.length) {
+                refs.resultsList.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">📊</div>
-                        <div class="empty-text">No results yet</div>
+                        <div class="empty-text">No results published yet</div>
                     </div>
                 `;
                 return;
             }
 
-            resultsList.innerHTML = mockResults.map(result => {
-                const gradeClass = `grade-${result.grade.toLowerCase()}`;
+            const examNameById = new Map(state.exams.map((e) => [String(e.id), e.name]));
+            refs.resultsList.innerHTML = state.results.map((result) => {
+                const grade = String(result.grade || 'F').toUpperCase();
+                const gradeClass = `grade-${grade.toLowerCase()}`;
+                const examName = examNameById.get(String(result.exam_id)) || `Exam ${result.exam_id}`;
+
                 return `
                     <div class="results-row">
                         <div class="result-info">
-                            <div class="result-name">${result.name}</div>
+                            <div class="result-name">${escapeHtml(examName)}</div>
                         </div>
                         <div class="grade-badge ${gradeClass}">
-                            ${result.grade} - ${result.percentage}%
+                            ${grade} - ${Math.round(Number(result.percentage || 0))}%
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function startExam(examId) {
-            const exam = mockExams.find(e => e.id === examId);
-            if (exam) {
-                console.log(`Starting exam: ${exam.name}`);
-                // In a real app, this would navigate to the exam interface
-                alert(`Starting ${exam.name}...`);
-                window.location.href = `/exam/${examId}`;
+        async function startExam(examId) {
+            const exam = state.exams.find((e) => e.id === examId);
+            if (!exam) {
+                return;
             }
+
+            refs.statusBanner.textContent = `Fetching questions for ${exam.name}...`;
+            try {
+                const questions = await apiRequest(`/questions/${examId}`, { method: 'GET' });
+                state.currentExam = exam;
+                state.questions = Array.isArray(questions) ? questions : [];
+                state.questionIndex = 0;
+                state.lastSubmittedQuestionId = null;
+
+                if (!state.questions.length) {
+                    refs.statusBanner.textContent = 'No questions available for this exam yet.';
+                    return;
+                }
+
+                openExamModal();
+                renderCurrentQuestion();
+                refs.statusBanner.textContent = `Exam session started: ${exam.name}`;
+            } catch (error) {
+                console.error('Question fetch failed', error);
+                refs.statusBanner.textContent = readErrorMessage(error, 'Could not load questions for this exam.');
+            }
+        }
+
+        function openExamModal() {
+            refs.examModalTitle.textContent = state.currentExam ? `Exam Session - ${state.currentExam.name}` : 'Exam Session';
+            refs.examModalBackdrop.style.display = 'flex';
+            refs.examModalBackdrop.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeExamModal() {
+            refs.examModalBackdrop.style.display = 'none';
+            refs.examModalBackdrop.setAttribute('aria-hidden', 'true');
+            refs.answerInput.value = '';
+            refs.optionList.innerHTML = '';
+            refs.examFeedback.textContent = 'Choose an answer and submit.';
+        }
+
+        function renderCurrentQuestion() {
+            if (!state.questions.length) {
+                return;
+            }
+            const q = state.questions[state.questionIndex];
+            refs.questionMeta.textContent = `Question ${state.questionIndex + 1} of ${state.questions.length}`;
+            refs.questionText.textContent = q.question_text || 'Untitled question';
+            refs.answerInput.value = '';
+            refs.optionList.innerHTML = '';
+            refs.examFeedback.textContent = 'Submit your answer for this question.';
+
+            const mcqOptions = [
+                { key: 'A', value: q.option_a },
+                { key: 'B', value: q.option_b },
+                { key: 'C', value: q.option_c },
+                { key: 'D', value: q.option_d }
+            ].filter((item) => item.value);
+
+            if (mcqOptions.length) {
+                refs.answerInput.style.display = 'none';
+                refs.optionList.innerHTML = mcqOptions.map((item) => `
+                    <button class="option-button" type="button" data-answer="${escapeHtml(String(item.key))}">
+                        ${item.key}. ${escapeHtml(String(item.value))}
+                    </button>
+                `).join('');
+
+                refs.optionList.querySelectorAll('button[data-answer]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        refs.answerInput.value = btn.getAttribute('data-answer') || '';
+                        refs.examFeedback.textContent = `Selected option ${refs.answerInput.value}. Click Submit Answer.`;
+                    });
+                });
+            } else {
+                refs.answerInput.style.display = 'block';
+            }
+        }
+
+        async function submitCurrentAnswer() {
+            if (!state.currentExam || !state.questions.length) {
+                return;
+            }
+
+            const q = state.questions[state.questionIndex];
+            const answer = refs.answerInput.value.trim();
+            if (!answer) {
+                refs.examFeedback.textContent = 'Please provide an answer before submitting.';
+                return;
+            }
+
+            try {
+                await apiRequest('/submit-answer', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        student_id: state.studentId,
+                        exam_id: String(state.currentExam.id),
+                        question_id: String(q.id),
+                        answer
+                    })
+                });
+
+                state.lastSubmittedQuestionId = q.id;
+                refs.examFeedback.textContent = `Answer submitted for question ${state.questionIndex + 1}.`;
+            } catch (error) {
+                const msg = readErrorMessage(error, 'Could not submit answer.');
+                refs.examFeedback.textContent = msg;
+            }
+        }
+
+        function goToNextQuestion() {
+            if (!state.questions.length) {
+                return;
+            }
+
+            if (state.lastSubmittedQuestionId !== state.questions[state.questionIndex].id) {
+                refs.examFeedback.textContent = 'Submit current answer before moving to the next question.';
+                return;
+            }
+
+            if (state.questionIndex < state.questions.length - 1) {
+                state.questionIndex += 1;
+                state.lastSubmittedQuestionId = null;
+                renderCurrentQuestion();
+                return;
+            }
+
+            refs.examFeedback.textContent = 'All questions submitted. Waiting for teacher to evaluate and publish results.';
+            refs.statusBanner.textContent = 'Exam submission completed. Refreshing results...';
+            closeExamModal();
+            refreshDashboard();
+        }
+
+        function mapExamFromApi(item) {
+            const metadata = parseDescription(item.description || '');
+            const durationMin = Number(item.duration_minutes || 0);
+            return {
+                id: Number(item.id),
+                name: String(item.title || `Exam ${item.id}`),
+                marks: Number(item.total_marks || 0),
+                duration: durationMin > 0 ? `${durationMin} mins` : 'Duration N/A',
+                status: metadata.status || 'active'
+            };
+        }
+
+        function parseDescription(raw) {
+            const data = {};
+            String(raw).split(';').forEach((pair) => {
+                const parts = pair.split(':');
+                if (parts.length !== 2) {
+                    return;
+                }
+                const key = parts[0].trim().toLowerCase();
+                const value = parts[1].trim().toLowerCase();
+                if (key === 'status' && ['active', 'pending', 'closed'].includes(value)) {
+                    data.status = value;
+                }
+            });
+            return data;
+        }
+
+        async function apiRequest(path, options = {}) {
+            const response = await fetch(`${apiBase}${path}`, {
+                method: options.method || 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...(options.headers || {})
+                },
+                body: options.body
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw payload;
+            }
+            return payload;
+        }
+
+        function readErrorMessage(error, fallback) {
+            if (!error) {
+                return fallback;
+            }
+            if (typeof error.detail === 'string') {
+                return error.detail;
+            }
+            if (error.detail && typeof error.detail.detail === 'string') {
+                return error.detail.detail;
+            }
+            return fallback;
+        }
+
+        function getBestGrade(grades) {
+            if (!grades.length) {
+                return 'N/A';
+            }
+            const order = ['A', 'B', 'C', 'D', 'F'];
+            for (const grade of order) {
+                if (grades.includes(grade)) {
+                    return grade;
+                }
+            }
+            return 'N/A';
+        }
+
+        function getInitials(username) {
+            const clean = String(username || '').trim();
+            if (!clean) {
+                return 'S';
+            }
+            return clean.slice(0, 2).toUpperCase();
         }
 
         function logout() {
             if (confirm('Are you sure you want to log out?')) {
-                console.log('Logging out...');
-                window.location.href = '/login';
+                localStorage.removeItem('exam_portal_token');
+                localStorage.removeItem('exam_portal_role');
+                localStorage.removeItem('exam_portal_current_user');
+                window.location.href = 'login.html';
             }
         }
 
-        // Handle Keyboard Shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Alt+L for logout
-            if (e.altKey && e.key === 'l') {
-                logout();
-            }
-        });
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
     </script>
 </body>
 </html>
