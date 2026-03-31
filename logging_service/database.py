@@ -5,9 +5,12 @@
 #filtering by the user as well 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
+# Create data directory if it doesn't exist
+os.makedirs('/app/data', exist_ok=True)
 
-DATABASE_URL = "sqlite:///./logs.db"
+DATABASE_URL = "sqlite:////app/data/logs.db"
 
 
 # Engine connects to DB

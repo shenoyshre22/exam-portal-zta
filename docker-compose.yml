@@ -11,12 +11,14 @@ services:
       - SERVICE_NAME=login_service
     networks:
       - exam_network
+    volumes:
+      - login_db:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/docs"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 20s
 
   # Question Management Service
   question_service:
@@ -28,16 +30,19 @@ services:
       - SERVICE_NAME=question_service
     networks:
       - exam_network
+    volumes:
+      - question_db:/app/data
     depends_on:
-      - login_service
+      login_service:
+        condition: service_healthy
     expose:
       - "5001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/docs"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 20s
 
   # Exam Service
   exam_service:
@@ -46,16 +51,19 @@ services:
     ports:
       - "5002:5002"
     environment:
-      - SERVICE_NAME=exam_service
-    networks:
-      - exam_network
+    volumes:
+      - exam_db:/app/data
     depends_on:
-      - login_service
+      login_service:
+        condition: service_healthy
     expose:
       - "5002"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/docs"]
       interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 2
       timeout: 5s
       retries: 3
       start_period: 10s
@@ -67,14 +75,16 @@ services:
     ports:
       - "5003:5003"
     environment:
-      - SERVICE_NAME=logging_service
-    networks:
-      - exam_network
+    volumes:
+      - logging_db:/app/data
     expose:
       - "5003"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/docs"]
       interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 2
       timeout: 5s
       retries: 3
       start_period: 10s
@@ -84,16 +94,19 @@ services:
     build: ./submission_service
     container_name: submission_service
     ports:
-      - "5004:5004"
-    environment:
-      - SERVICE_NAME=submission_service
-    networks:
-      - exam_network
+    volumes:
+      - submission_db:/app/data
     depends_on:
-      - exam_service
+      exam_service:
+        condition: service_healthy
     expose:
       - "5004"
     healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 2
       test: ["CMD", "curl", "-f", "http://localhost:5004/docs"]
       interval: 10s
       timeout: 5s
@@ -105,16 +118,19 @@ services:
     build: ./evaluation_service
     container_name: evaluation_service
     ports:
-      - "5005:5005"
-    environment:
-      - SERVICE_NAME=evaluation_service
-    networks:
-      - exam_network
+    volumes:
+      - evaluation_db:/app/data
     depends_on:
-      - submission_service
+      submission_service:
+        condition: service_healthy
     expose:
       - "5005"
     healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 2
       test: ["CMD", "curl", "-f", "http://localhost:5005/docs"]
       interval: 10s
       timeout: 5s
@@ -125,16 +141,19 @@ services:
   result_service:
     build: ./result_service
     container_name: result_service
-    ports:
-      - "5006:5006"
-    environment:
-      - SERVICE_NAME=result_service
-    networks:
-      - exam_network
+    volumes:
+      - result_db:/app/data
     depends_on:
-      - evaluation_service
+      evaluation_service:
+        condition: service_healthy
     expose:
       - "5006"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5006/docs"]
       interval: 10s
@@ -164,11 +183,21 @@ services:
       submission_service:
         condition: service_healthy
       evaluation_service:
-        condition: service_healthy
-      result_service:
-        condition: service_healthy
-    expose:
-      - "8000"
+        conditi5
+      start_period: 20s
+
+networks:
+  exam_network:
+    driver: bridge
+
+volumes:
+  login_db:
+  question_db:
+  exam_db:
+  logging_db:
+  submission_db:
+  evaluation_db:
+  result_db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
       interval: 10s
