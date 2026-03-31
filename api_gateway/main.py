@@ -121,12 +121,23 @@ def submit_answer(payload: dict, user=Depends(validate_token)):
     return proxy("POST", f"{SERVICES['submission']}/submit-answer", payload)
 
 
+@app.get("/submissions/{student_id}")
+def submissions(student_id: str, user=Depends(validate_token)):
+    return proxy("GET", f"{SERVICES['submission']}/submissions/{student_id}")
+
+
 # --- Evaluation routes (protected) ---
 
 @app.post("/evaluate")
 def evaluate(payload: dict, authorization: str = Header(default=""), user=Depends(validate_token)):
     token = authorization.split(" ", 1)[1].strip()
     return proxy("POST", f"{SERVICES['evaluation']}/evaluate", payload, token=token)
+
+
+@app.get("/evaluations/{student_id}")
+def evaluations(student_id: str, authorization: str = Header(default=""), user=Depends(validate_token)):
+    token = authorization.split(" ", 1)[1].strip()
+    return proxy("GET", f"{SERVICES['evaluation']}/evaluations/{student_id}", token=token)
 
 
 # --- Result routes (protected) ---

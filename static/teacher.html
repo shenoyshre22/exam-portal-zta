@@ -931,9 +931,12 @@
 					method: "POST",
 					body: JSON.stringify({
 						title: name,
-						description,
+						description: "",
 						total_marks: marks,
-						duration_minutes: 60
+						duration_minutes: 60,
+						status,
+						target_students: students,
+						average_score: avg
 					})
 				});
 
@@ -976,46 +979,17 @@
 		}
 
 		function mapExamFromApi(item) {
-			const metadata = parseDescription(item.description || "");
-			const fallbackStudents = 8 + ((Number(item.id) || 1) % 17);
-			const status = metadata.status || "active";
-			const avg = Number.isFinite(metadata.avg) ? metadata.avg : (status === "closed" ? 70 : 0);
+			const status = ["active", "pending", "closed"].includes(String(item.status || "").toLowerCase())
+				? String(item.status).toLowerCase()
+				: "active";
 			return {
 				id: Number(item.id),
 				name: String(item.title || "Untitled exam"),
-				students: Number.isFinite(metadata.students) ? metadata.students : fallbackStudents,
+				students: Math.max(Number(item.target_students || 0), 0),
 				marks: Number(item.total_marks || 0),
 				status,
-				avg
+				avg: Number(item.average_score || 0)
 			};
-		}
-
-		function parseDescription(raw) {
-			const result = {};
-			raw.split(";").forEach((pair) => {
-				const parts = pair.split(":");
-				if (parts.length !== 2) {
-					return;
-				}
-				const key = parts[0].trim().toLowerCase();
-				const value = parts[1].trim();
-				if (key === "status" && ["active", "pending", "closed"].includes(value)) {
-					result.status = value;
-				}
-				if (key === "students") {
-					const n = Number(value);
-					if (Number.isFinite(n) && n > 0) {
-						result.students = n;
-					}
-				}
-				if (key === "avg") {
-					const n = Number(value);
-					if (Number.isFinite(n) && n >= 0 && n <= 100) {
-						result.avg = n;
-					}
-				}
-			});
-			return result;
 		}
 
 		function readErrorMessage(error, fallback) {
