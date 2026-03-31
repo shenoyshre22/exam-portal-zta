@@ -2,7 +2,7 @@ from logger import log_event
 from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Float, text
 from database import SessionLocal, engine, Base
 from auth_client import verify_token
 
@@ -17,9 +17,30 @@ class Exam(Base):
     description = Column(String, nullable=True)
     total_marks = Column(Integer, nullable=False)
     duration_minutes = Column(Integer, nullable=False)
+    status = Column(String, nullable=False, default="active")
+    target_students = Column(Integer, nullable=False, default=0)
+    average_score = Column(Float, nullable=False, default=0.0)
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_exam_schema():
+    # Backward-safe migration for existing SQLite table.
+    with engine.connect() as conn:
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(exams)"))}
+
+        if "status" not in columns:
+            conn.execute(text("ALTER TABLE exams ADD COLUMN status VARCHAR DEFAULT 'active'"))
+        if "target_students" not in columns:
+            conn.execute(text("ALTER TABLE exams ADD COLUMN target_students INTEGER DEFAULT 0"))
+        if "average_score" not in columns:
+            conn.execute(text("ALTER TABLE exams ADD COLUMN average_score FLOAT DEFAULT 0"))
+
+        conn.commit()
+
+
+ensure_exam_schema()
 
 
 class ExamCreate(BaseModel):
@@ -27,6 +48,9 @@ class ExamCreate(BaseModel):
     description: str = ""
     total_marks: int
     duration_minutes: int
+    status: str = "active"
+    target_students: int = 0
+    average_score: float = 0.0
 
 
 def get_db():
@@ -66,11 +90,18 @@ def root():
 
 @app.post("/exams")
 def create_exam(payload: ExamCreate, db: Session = Depends(get_db), user=Depends(get_curr_teacher)):
+    normalized_status = payload.status.lower().strip()
+    if normalized_status not in {"active", "pending", "closed"}:
+        raise HTTPException(status_code=400, detail="status must be one of active, pending, closed")
+
     exam = Exam(
         title=payload.title,
         description=payload.description,
         total_marks=payload.total_marks,
         duration_minutes=payload.duration_minutes,
+        status=normalized_status,
+        target_students=max(int(payload.target_students), 0),
+        average_score=float(payload.average_score),
     )
     db.add(exam)
     db.commit()

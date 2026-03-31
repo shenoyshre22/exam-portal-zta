@@ -694,12 +694,19 @@
                 return;
             }
 
+            const ok = await verifySession();
+            if (!ok) {
+                window.location.href = 'login.html';
+                return;
+            }
+
             refs.username.textContent = state.studentId;
             refs.userAvatar.textContent = getInitials(state.studentId);
             refs.greeting.textContent = `Welcome back, ${state.studentId}`;
 
             bindEvents();
             await refreshDashboard();
+            await logPageVisit();
         }
 
         function bindEvents() {
@@ -978,31 +985,17 @@
         }
 
         function mapExamFromApi(item) {
-            const metadata = parseDescription(item.description || '');
             const durationMin = Number(item.duration_minutes || 0);
+            const status = ['active', 'pending', 'closed'].includes(String(item.status || '').toLowerCase())
+                ? String(item.status).toLowerCase()
+                : 'active';
             return {
                 id: Number(item.id),
                 name: String(item.title || `Exam ${item.id}`),
                 marks: Number(item.total_marks || 0),
                 duration: durationMin > 0 ? `${durationMin} mins` : 'Duration N/A',
-                status: metadata.status || 'active'
+                status
             };
-        }
-
-        function parseDescription(raw) {
-            const data = {};
-            String(raw).split(';').forEach((pair) => {
-                const parts = pair.split(':');
-                if (parts.length !== 2) {
-                    return;
-                }
-                const key = parts[0].trim().toLowerCase();
-                const value = parts[1].trim().toLowerCase();
-                if (key === 'status' && ['active', 'pending', 'closed'].includes(value)) {
-                    data.status = value;
-                }
-            });
-            return data;
         }
 
         async function apiRequest(path, options = {}) {
@@ -1021,6 +1014,32 @@
                 throw payload;
             }
             return payload;
+        }
+
+        async function verifySession() {
+            try {
+                await apiRequest('/auth/verify', { method: 'GET' });
+                return true;
+            } catch (error) {
+                console.error('Session verification failed', error);
+                return false;
+            }
+        }
+
+        async function logPageVisit() {
+            try {
+                await apiRequest('/log-event', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: state.studentId,
+                        service: 'frontend',
+                        event_type: 'STUDENT_DASHBOARD_OPENED',
+                        description: 'Student dashboard opened'
+                    })
+                });
+            } catch (error) {
+                console.warn('Failed to write page visit log', error);
+            }
         }
 
         function readErrorMessage(error, fallback) {

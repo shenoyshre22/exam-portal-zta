@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, UploadFile, File
 import requests
 
 
@@ -21,6 +21,30 @@ def proxy(method: str, url: str, payload=None, token: str = None):
         headers["Authorization"] = f"Bearer {token}"
     try:
         response = requests.request(method, url, json=payload, headers=headers, timeout=10)
+    except requests.RequestException:
+        raise HTTPException(status_code=503, detail="Downstream service unavailable")
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = {"detail": response.text}
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=data)
+    return data
+
+
+def proxy_multipart(url: str, token: str, exam_id: int, upload: UploadFile):
+    headers = {"Authorization": f"Bearer {token}"}
+    files = {"file": (upload.filename or "questions.pdf", upload.file, upload.content_type or "application/pdf")}
+    try:
+        response = requests.post(
+            url,
+            params={"exam_id": exam_id},
+            headers=headers,
+            files=files,
+            timeout=20,
+        )
     except requests.RequestException:
         raise HTTPException(status_code=503, detail="Downstream service unavailable")
 
@@ -74,6 +98,11 @@ def login(payload: dict):
     return proxy("POST", f"{SERVICES['login']}/login", payload)
 
 
+@app.get("/auth/verify")
+def auth_verify(user=Depends(validate_token)):
+    return user
+
+
 # --- Question routes (protected) ---
 
 @app.get("/questions/{exam_id}")
@@ -89,9 +118,9 @@ def add_mcq(payload: dict, authorization: str = Header(default=""), user=Depends
 
 
 @app.post("/questions/upload-pdf")
-def upload_pdf(authorization: str = Header(default=""), user=Depends(validate_token)):
+def upload_pdf(exam_id: int, file: UploadFile = File(...), authorization: str = Header(default=""), user=Depends(validate_token)):
     token = authorization.split(" ", 1)[1].strip()
-    return proxy("POST", f"{SERVICES['question']}/upload-pdf", token=token)
+    return proxy_multipart(f"{SERVICES['question']}/upload-pdf", token, exam_id, file)
 
 
 # --- Exam routes (NEW + protected) ---
@@ -121,12 +150,23 @@ def submit_answer(payload: dict, user=Depends(validate_token)):
     return proxy("POST", f"{SERVICES['submission']}/submit-answer", payload)
 
 
+@app.get("/submissions/{student_id}")
+def submissions(student_id: str, user=Depends(validate_token)):
+    return proxy("GET", f"{SERVICES['submission']}/submissions/{student_id}")
+
+
 # --- Evaluation routes (protected) ---
 
 @app.post("/evaluate")
 def evaluate(payload: dict, authorization: str = Header(default=""), user=Depends(validate_token)):
     token = authorization.split(" ", 1)[1].strip()
     return proxy("POST", f"{SERVICES['evaluation']}/evaluate", payload, token=token)
+
+
+@app.get("/evaluations/{student_id}")
+def evaluations(student_id: str, authorization: str = Header(default=""), user=Depends(validate_token)):
+    token = authorization.split(" ", 1)[1].strip()
+    return proxy("GET", f"{SERVICES['evaluation']}/evaluations/{student_id}", token=token)
 
 
 # --- Result routes (protected) ---
@@ -141,4 +181,21 @@ def publish_result(payload: dict, authorization: str = Header(default=""), user=
 def results(student_id: str, authorization: str = Header(default=""), user=Depends(validate_token)):
     token = authorization.split(" ", 1)[1].strip()
     return proxy("GET", f"{SERVICES['result']}/results/{student_id}", token=token)
+
+
+# --- Logging routes (protected) ---
+
+@app.post("/log-event")
+def log_event(payload: dict, user=Depends(validate_token)):
+    return proxy("POST", f"{SERVICES['logging']}/log-event", payload)
+
+
+@app.get("/logs")
+def logs(user=Depends(validate_token)):
+    return proxy("GET", f"{SERVICES['logging']}/logs")
+
+
+@app.get("/logs/{user_id}")
+def user_logs(user_id: str, user=Depends(validate_token)):
+    return proxy("GET", f"{SERVICES['logging']}/logs/{user_id}")
 
