@@ -197,13 +197,7 @@ volumes:
   logging_db:
   submission_db:
   evaluation_db:
-  result_db
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+  result_db:
 
 networks:
   exam_network:
