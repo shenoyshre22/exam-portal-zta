@@ -183,7 +183,9 @@ services:
       submission_service:
         condition: service_healthy
       evaluation_service:
-        conditi5
+        condition: service_healthy
+      result_service:
+        condition: service_healthy
       start_period: 20s
 
 networks:
@@ -198,7 +200,3 @@ volumes:
   submission_db:
   evaluation_db:
   result_db:
-
-networks:
-  exam_network:
-    driver: bridge
