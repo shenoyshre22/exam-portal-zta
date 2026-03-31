@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Exam Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #faf9f8;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .dashboard-shell {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: #f5f4f3;
+            border: 0.5px solid #e8e8e8;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background-color: #ffffff;
+            border-bottom: 0.5px solid #e8e8e8;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 16px 16px 0 0;
+            flex-shrink: 0;
+        }
+
+        .navbar-left {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-identity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            background-color: #e9d5ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #6b46c1;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .username {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+
+        .logout-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #666666;
+            border: 0.5px solid #d9d9d9;
+            border-radius: 6px;
+            background-color: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .logout-btn:hover {
+            border-color: #999999;
+            color: #333333;
+            background-color: #f9f9f9;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Greeting */
+        .greeting {
+            font-size: 13px;
+            color: #999999;
+            margin-bottom: 4px;
+        }
+
+        /* Metric Cards Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .metric-card {
+            background-color: #fafaf9;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #999999;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 22px;
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+
+        /* Two Column Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border: 0.5px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        /* Exam List Items */
+        .exam-list,
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .exam-row,
+        .results-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 0.5px solid #f0f0f0;
+        }
+
+        .exam-row:last-child,
+        .results-row:last-child {
+            border-bottom: none;
+        }
+
+        .exam-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .exam-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+
+        .exam-metadata {
+            font-size: 12px;
+            color: #999999;
+        }
+
+        .exam-action {
+            display: flex;
+            align-items: center;
+        }
+
+        .start-button {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+            background-color: #6b46c1;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            height: 28px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .start-button:hover {
+            background-color: #5a3aad;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(107, 70, 193, 0.2);
+        }
+
+        .start-button:active {
+            background-color: #4a2a8f;
+            transform: translateY(0);
+        }
+
+        .upcoming-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #92400e;
+            background-color: #fef3c7;
+            border-radius: 4px;
+        }
+
+        .results-row {
+            align-items: center;
+        }
+
+        .result-info {
+            flex: 1;
+        }
+
+        .result-name {
+            font-size: 13px;
+            color: #1a1a1a;
+        }
+
+        .grade-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 12px;
+            white-space: nowrap;
+        }
+
+        .grade-a {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .grade-b {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .grade-c {
+            background-color: #fed7aa;
+            color: #92400e;
+        }
+
+        .grade-d {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px 20px;
+            color: #999999;
+        }
+
+        .empty-icon {
+            font-size: 32px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* Scrollbar Styling */
+        .content-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: #d9d9d9;
+            border-radius: 3px;
+        }
+
+        .content-area::-webkit-scrollbar-thumb:hover {
+            background: #999999;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .dashboard-shell {
+                border-radius: 8px;
+                min-height: auto;
+            }
+
+            .navbar {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+                border-radius: 8px 8px 0 0;
+            }
+
+            .navbar-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .content-area {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .exam-row,
+            .results-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .exam-action,
+            .grade-badge {
+                width: 100%;
+            }
+
+            .start-button {
+                width: 100%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-shell">
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <div class="navbar-left">Exam portal</div>
+            <div class="navbar-right">
+                <div class="user-identity">
+                    <div class="user-avatar" id="userAvatar">S</div>
+                    <div class="user-info">
+                        <span class="username" id="username">student1</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Log out</button>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="greeting" id="greeting">Welcome back, student1</div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Exams Taken</div>
+                    <div class="metric-value" id="examsTaken">3</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Average Score</div>
+                    <div class="metric-value" id="avgScore">78%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Best Grade</div>
+                    <div class="metric-value" id="bestGrade">A</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Pending Exams</div>
+                    <div class="metric-value" id="pendingExams">2</div>
+                </div>
+            </div>
+
+            <!-- Two Column Content Grid -->
+            <div class="content-grid">
+                <!-- Available Exams Card -->
+                <div class="card">
+                    <h2 class="card-title">Available Exams</h2>
+                    <div class="exam-list" id="examList">
+                        <!-- Exam rows will be populated here -->
+                    </div>
+                </div>
+
+                <!-- My Results Card -->
+                <div class="card">
+                    <h2 class="card-title">My Results</h2>
+                    <div class="results-list" id="resultsList">
+                        <!-- Results rows will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock Data
+        const mockExams = [
+            {
+                id: 1,
+                name: 'Data Structures',
+                duration: '2 hours',
+                marks: 100,
+                status: 'available'
+            },
+            {
+                id: 2,
+                name: 'Algorithms',
+                duration: '2.5 hours',
+                marks: 100,
+                status: 'available'
+            },
+            {
+                id: 3,
+                name: 'Web Development',
+                duration: '1.5 hours',
+                marks: 50,
+                status: 'upcoming'
+            },
+            {
+                id: 4,
+                name: 'Database Design',
+                duration: '2 hours',
+                marks: 75,
+                status: 'upcoming'
+            }
+        ];
+
+        const mockResults = [
+            {
+                id: 1,
+                name: 'Java Programming',
+                grade: 'A',
+                percentage: 92
+            },
+            {
+                id: 2,
+                name: 'Operating Systems',
+                grade: 'B',
+                percentage: 85
+            },
+            {
+                id: 3,
+                name: 'Software Engineering',
+                grade: 'A',
+                percentage: 88
+            }
+        ];
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+            loadExams();
+            loadResults();
+        });
+
+        function loadUserData() {
+            // In a real app, this would fetch from the backend
+            const userData = {
+                username: 'student1',
+                initials: 'S1',
+                examsTaken: 3,
+                avgScore: 78,
+                bestGrade: 'A',
+                pendingExams: 2
+            };
+
+            document.getElementById('username').textContent = userData.username;
+            document.getElementById('userAvatar').textContent = userData.initials.substring(0, 2);
+            document.getElementById('greeting').textContent = `Welcome back, ${userData.username}`;
+            document.getElementById('examsTaken').textContent = userData.examsTaken;
+            document.getElementById('avgScore').textContent = `${userData.avgScore}%`;
+            document.getElementById('bestGrade').textContent = userData.bestGrade;
+            document.getElementById('pendingExams').textContent = userData.pendingExams;
+        }
+
+        function loadExams() {
+            const examList = document.getElementById('examList');
+            
+            if (mockExams.length === 0) {
+                examList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <div class="empty-text">No exams available at the moment</div>
+                    </div>
+                `;
+                return;
+            }
+
+            examList.innerHTML = mockExams.map(exam => `
+                <div class="exam-row">
+                    <div class="exam-info">
+                        <div class="exam-name">${exam.name}</div>
+                        <div class="exam-metadata">${exam.duration} • ${exam.marks} marks</div>
+                    </div>
+                    <div class="exam-action">
+                        ${exam.status === 'available' 
+                            ? `<button class="start-button" onclick="startExam(${exam.id})">Start</button>`
+                            : `<span class="upcoming-badge">Upcoming</span>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadResults() {
+            const resultsList = document.getElementById('resultsList');
+            
+            if (mockResults.length === 0) {
+                resultsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-text">No results yet</div>
+                    </div>
+                `;
+                return;
+            }
+
+            resultsList.innerHTML = mockResults.map(result => {
+                const gradeClass = `grade-${result.grade.toLowerCase()}`;
+                return `
+                    <div class="results-row">
+                        <div class="result-info">
+                            <div class="result-name">${result.name}</div>
+                        </div>
+                        <div class="grade-badge ${gradeClass}">
+                            ${result.grade} - ${result.percentage}%
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function startExam(examId) {
+            const exam = mockExams.find(e => e.id === examId);
+            if (exam) {
+                console.log(`Starting exam: ${exam.name}`);
+                // In a real app, this would navigate to the exam interface
+                alert(`Starting ${exam.name}...`);
+                window.location.href = `/exam/${examId}`;
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to log out?')) {
+                console.log('Logging out...');
+                window.location.href = '/login';
+            }
+        }
+
+        // Handle Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Alt+L for logout
+            if (e.altKey && e.key === 'l') {
+                logout();
+            }
+        });
+    </script>
+</body>
+</html>
