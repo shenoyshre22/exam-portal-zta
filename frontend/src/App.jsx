@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import CreateQuestion from "./pages/CreateQuestion";
-import TakeExam from "./pages/TakeExam";
-import Results from "./pages/Results";
+import Login from "./pages/login";
+import Dashboard from "./pages/dashboard";
+import CreateQuestion from "./pages/create_question";
+import TakeExam from "./pages/take_exam";
+import Results from "./pages/results";
 
 const PrivateRoute = ({ children }) => {
   return localStorage.getItem("token") ? children : <Navigate to="/" />;
