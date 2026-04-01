@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Authentication Service
   login_service:
     build: ./login_service
     container_name: login_service
@@ -13,14 +12,7 @@ services:
       - exam_network
     volumes:
       - login_db:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
-  # Question Management Service
   question_service:
     build: ./question_service
     container_name: question_service
@@ -33,16 +25,8 @@ services:
     volumes:
       - question_db:/app/data
     depends_on:
-      login_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - login_service
 
-  # Exam Service
   exam_service:
     build: ./exam_service
     container_name: exam_service
@@ -55,16 +39,8 @@ services:
     volumes:
       - exam_db:/app/data
     depends_on:
-      login_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - login_service
 
-  # Logging Service
   logging_service:
     build: ./logging_service
     container_name: logging_service
@@ -76,14 +52,7 @@ services:
       - exam_network
     volumes:
       - logging_db:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
-  # Submission Service
   submission_service:
     build: ./submission_service
     container_name: submission_service
@@ -96,16 +65,8 @@ services:
     volumes:
       - submission_db:/app/data
     depends_on:
-      exam_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5004/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - exam_service
 
-  # Evaluation Service
   evaluation_service:
     build: ./evaluation_service
     container_name: evaluation_service
@@ -118,16 +79,8 @@ services:
     volumes:
       - evaluation_db:/app/data
     depends_on:
-      submission_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5005/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - submission_service
 
-  # Result Service
   result_service:
     build: ./result_service
     container_name: result_service
@@ -140,16 +93,8 @@ services:
     volumes:
       - result_db:/app/data
     depends_on:
-      evaluation_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5006/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - evaluation_service
 
-  # API Gateway (Main Entry Point)
   api_gateway:
     build: ./api_gateway
     container_name: api_gateway
@@ -160,26 +105,13 @@ services:
     networks:
       - exam_network
     depends_on:
-      login_service:
-        condition: service_healthy
-      question_service:
-        condition: service_healthy
-      exam_service:
-        condition: service_healthy
-      logging_service:
-        condition: service_healthy
-      submission_service:
-        condition: service_healthy
-      evaluation_service:
-        condition: service_healthy
-      result_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - login_service
+      - question_service
+      - exam_service
+      - logging_service
+      - submission_service
+      - evaluation_service
+      - result_service
 
 networks:
   exam_network:
