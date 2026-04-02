@@ -16,10 +16,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
 
-        {/* Public Route */}
+        {/* Public */}
         <Route path="/" element={<Login />} />
 
-        {/* Protected Routes */}
+        {/* Protected */}
         <Route
           path="/dashboard"
           element={
